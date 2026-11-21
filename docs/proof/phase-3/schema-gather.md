@@ -24,7 +24,7 @@ python3 -m chonoi.headless --mode quan --seed 1 --inventory docs/proof/phase-3/h
 - Cả hai mã thoát `0`. `gather_end` tick 1, `reason: "docked"`.
 - [handoff-inventory.json](handoff-inventory.json): `{"items":[{"id":"I1","kind":"ca_linh","fresh":99.99166666666666}]}` = 100 − 0,5/60 (đúng một lần hao ở bước gather, độ chính xác đầy đủ).
 - `gather_end.data.inventory` trong JSONL cùng schema, `fresh` 99.992 (khung `jsonl.py` làm tròn 3 chữ số; trong dung sai ±0,01 của ticket).
-- [handoff-quan.jsonl](handoff-quan.jsonl): quán đọc file v1.2 thành công. **Chưa đạt phần so id/fresh ở snapshot quán**: snapshot vẫn là `stock {"ca_linh":1}` qua adapter tạm trong `QuanSim` — lát Quán (Trà) chuyển `stock` sang mảng cá thể.
+- [handoff-quan.jsonl](handoff-quan.jsonl): quán đọc file v1.2 thành công. Lúc chạy trên `p3/schema` snapshot quán còn là kho đếm qua adapter tạm; **sau tích hợp** snapshot là mảng cá thể cùng id/fresh — xem [integration.md](integration.md) §1 (file đã được chạy lại).
 
 ## 3. Kho đếm bị từ chối
 

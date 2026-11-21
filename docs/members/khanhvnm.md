@@ -14,6 +14,13 @@
 - Commits: `1c2e678` (gather/contract), `787fd22` (shop), `62b35b8` (docs); merge PR #4, #6.
 - Bằng chứng: [integration.md](../proof/phase-2/integration.md), [day-smoke.md](../proof/phase-2/day-smoke.md), [verification](../verification/phase-2.md).
 
+## Phase 3
+
+- Vai: PO, chủ hợp đồng v1.2, Integrator.
+- Việc: kế hoạch và phân tích tác động (`docs/plan/phase-3.md`); lát S (`chonoi/inventory.py`, contract 1.2) và G (độ tươi gather); di chuyển fixture test P1–P2; `tests/test_fresh_v12.py`; tích hợp `p3/schema` với lát Quán/Day; smoke và verification Phase 3.
+- Commits: `35dbdea`, `2a5c0f6`, `6368d06` (p3/schema) và commit tích hợp trên `p3/integrate`.
+- Bằng chứng: [schema-gather.md](../proof/phase-3/schema-gather.md), [integration.md](../proof/phase-3/integration.md).
+
 ## Tự phản tư
 
 Khánh cần tự ghi điều đã học, phần đã review và một lỗi AI đã phát hiện trước khi nộp retro cá nhân.

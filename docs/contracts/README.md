@@ -135,7 +135,9 @@ Chủ hợp đồng: Khánh. `game.contract.json`: `contract_version: "1.2"`, th
 - Đầu bước (cùng nhóm đồng hồ/cooldown/hồi nút): giỏ hao `gather_decay_per_s / tick_hz`, kẹp đáy 0; `spoiled {item_id, kind, location: "hold"}` đúng một lần khi đi từ ≥ 30 xuống < 30, nhiều cá thể theo id.
 - `monster_hit.lost` và `faint.lost` là mảng cá thể theo thứ tự bỏ LIFO.
 
-### 5.4 Chưa đổi (thuộc lát khác)
+### 5.4 Quán, day, Shop, HUD (đã tích hợp)
 
-- Quán (Trà): `quan.stock`, `customers[].reserved`, snapshot `stock`, `cook_started.items`, hao 0.25/s, giữ theo id, giá theo tươi. **Tạm thời** `QuanSim` nhận kho cá thể qua adapter (đếm hàng chưa ươn) để `main` chạy được — xóa adapter khi lát Quán xong.
-- Day/Shop/HUD (Thành): Shop `stock` cá thể, `delivered` (EveningIntro) hiện là số lượng theo loại, HUD độ tươi.
+- Quán (Trà, `chonoi/sim/quan.py`): `quan.stock` mảng cá thể, `customers[].reserved` mảng id; nội bộ dùng đơn vị nguyên 240/điểm (hao 1 đơn vị/tick). Đầu bước sau đồng hồ: hao kho (kể cả hàng giữ) → `spoiled {location:"stock"}` theo id → đơn có phần giữ vừa ươn nhả toàn bộ, thử giữ lại một lần theo `order_tick` rồi id bàn, thiếu → `unfulfillable`. Giữ chỗ lấy cá thể chưa ươn tươi nhất, hòa theo id. Bắt đầu nấu tiêu đúng id đang giữ, `base_price = floor(giá × trung bình fresh / 100)`; `cook_started.items` sắp theo kind rồi id.
+- Day (Thành, `chonoi/day.py`): bàn giao `gather.inventory_items()` cho quán trong cùng tick đổi pha; Ngày ≥ 2 cấp id mới cho mẫu `gather.hold`; `delivered` = `gather_end.inventory.items`. Shop nhận `stock` từ snapshot quán, không hao.
+- HUD (Thành, `chonoi/web/index.html`): bảng độ tươi (thanh + số, nhãn ươn theo `freshness.spoiled_below`), kho khả dụng loại trừ hàng giữ và hàng ươn.
+- Không còn adapter kho đếm ở bất kỳ module nào.

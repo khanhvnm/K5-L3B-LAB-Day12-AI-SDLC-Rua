@@ -24,3 +24,5 @@
 | P3-02 | 2026-11-21 | Có hỗ trợ song song kho đếm v1.1 khi chuyển? | Không. Một đầu đọc/ghi duy nhất (`chonoi/inventory.py`), đổi một lần; v1.2 trả mã 2 cho kho đếm. Quán dùng adapter tạm trong lúc chờ lát Quán. | Khánh |
 | P3-03 | 2026-11-21 | Scenario `gather.hold` có cho bỏ `fresh`/`id`? | Không: mỗi cá thể cần đúng `{id, kind, fresh}`, giống file kho. | Khánh (giả định) |
 | P3-04 | 2026-11-21 | `gather_end.data.inventory` trong JSONL bị làm tròn 3 chữ số (khung `jsonl.py`), file kho đầy đủ — có lệch? | Chấp nhận: ticket cho dung sai quan sát ±0.01; nhánh ngưỡng kiểm bằng event `spoiled`, không so float. | Khánh |
+| P3-05 | 2026-11-21 | Quán lưu tươi bằng đơn vị nguyên 240/điểm (lấy `round(fresh × 240)`), gather dùng `Fraction` — có lệch nhánh? | Không với dữ liệu bàn giao (gather chỉ sinh bội của 1/120). Fixture quán có `fresh` không phải bội 1/240 (vd 30.001) bị làm tròn tới 1/240 gần nhất, có thể lệch nhánh ngưỡng ±1 tick. Ticket nói fixture "biểu diễn chính xác" nên chấp nhận; ghi lại rủi ro. | Khánh, Trà |
+| P3-06 | 2026-11-21 | Thứ tự `gather_end.data.inventory.items`? | Theo id, giống file kho. `day.delivered` sao đúng mảng này. | Khánh |

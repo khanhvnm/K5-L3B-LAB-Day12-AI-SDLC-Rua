@@ -6,6 +6,12 @@
 - Điều tệ: lát day/UI dồn thành một commit lớn ở cuối nên tích hợp muộn; smoke tích hợp phút 20 và bằng chứng preset thật chỉ làm sau khi ghép; chưa có lượt chơi tay trọn vòng ngày; câu hỏi bất tử 90 tick chưa hỏi PO.
 - 1 hành động cho Phase 3: mỗi lát mở PR nhỏ ít nhất một lần trước phút 25 và chạy smoke tích hợp ngay khi PR vào `main` — **người nhận: Khánh** (nhắc ở standup phút 20); Thành commit theo từng phần nhỏ.
 
+## Phase 3 (nhanh — điều rút ra từ lần đổi kho)
+> Nháp do Khánh ghi; cả nhóm xác nhận.
+- Điều tốt: chốt sớm schema cá thể và thứ tự tích hợp; mỗi lát tự viết test ngưỡng (gather 15, quán 13, day/HUD); sau khi ghép chỉ có 3 file conflict và suite về xanh 154/154.
+- Điều tệ: PR lát schema (`p3/schema`) **không được merge trước** PR Quán và Day/UI dù kế hoạch ghi "S đi trước" — hai lát kia phải tự viết adapter tạm và tự thêm `freshness`, dẫn tới khối contract khai hai lần và hai chỗ cấp id cho mẫu `hold`. Phát hiện khi suite đỏ trên `main` (5 test).
+- 1 hành động cho Phase 4: PR đổi hợp đồng/schema phải merge trước mọi PR phụ thuộc; người tích hợp kiểm `git merge-base --is-ancestor` trước khi merge PR lát — **người nhận: Khánh**.
+
 ## Phase 4 (cuối)
 - Rà lại hành động Phase 2: đã làm chưa? vì sao?
 - Điều tốt / điều tệ:
