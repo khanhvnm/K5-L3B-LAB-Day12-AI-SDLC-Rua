@@ -1,6 +1,11 @@
 # Changelog
 ## Unreleased
 
+## phase-4 / v1.0.0 — Test Contract v1.3
+- Manifest `contract_version: "1.3"`, thêm `bench_cmd` (`python3 -m chonoi.bench`) và `soak_cmd` (`python3 -m chonoi.soak`); `run_cmd` mở vòng ngày 5 Ngày. Gameplay, tuning, kho, JSONL giữ v1.2.
+- Benchmark có render: `chonoi/bench.py` + chế độ `?bench=` trong `chonoi/web/index.html`, Chrome/Chromium/Edge headless 1280×720, làm nóng 3 s, ghi `bench.json` 5 trường.
+- Test đổi vì phiên bản (luật không đổi): `test_fresh_v12::test_version_and_freshness_block`, `test_gather_v11::test_version_and_standard_numbers` nhận thêm `"1.3"`.
+
 ## phase-3 — Test Contract v1.2 (BREAKING)
 - **Kho cá thể:** file kho, `gather_end.inventory`, `gather.hold`, `lost` đổi từ đếm theo loại sang mảng `{id, kind, fresh}`; kho đếm cũ bị từ chối (mã 2). Kho rỗng `{"items":[]}`.
 - **Độ tươi:** `tuning.freshness`; giỏ hao 0.5/s, kho quán 0.25/s (kể cả hàng giữ, không hao ở Shop/khi pause), event `spoiled {item_id, kind, location}` khi xuống dưới 30.
