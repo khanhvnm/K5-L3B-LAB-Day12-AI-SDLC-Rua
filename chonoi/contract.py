@@ -3,7 +3,9 @@
 import json
 import os
 
+from .dayplan import validate_day_plan
 from .errors import BadInput
+from .inventory import KINDS
 
 DEFAULT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game.contract.json")
 
@@ -141,3 +143,13 @@ def validate_tuning(t):
         price, cook = d.get("price"), d.get("cook_s")
         if isinstance(price, bool) or not isinstance(price, int) or price <= 0 or not _num(cook) or cook <= 0:
             raise BadInput(f"menu.{dish_id}: price (nguyên) và cook_s phải > 0")
+        recipe = d.get("recipe")
+        if not isinstance(recipe, dict) or not recipe:
+            raise BadInput(f"menu.{dish_id}.recipe phải là map nguyên liệu -> số lượng")
+        for kind, qty in recipe.items():
+            if kind not in KINDS:
+                raise BadInput(f"menu.{dish_id}.recipe: nguyên liệu lạ {kind!r}")
+            _int_between(f"menu.{dish_id}.recipe.{kind}", qty, 1, 99)
+    # Contract v1.1: kế hoạch D1–D5, ingredients phải bằng tổng công thức × suất.
+    if "day_plan" in t:
+        validate_day_plan(t["day_plan"], menu)
