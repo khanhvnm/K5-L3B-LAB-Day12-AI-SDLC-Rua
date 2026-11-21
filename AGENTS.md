@@ -7,6 +7,7 @@
 - Headless: `python3 -m chonoi.headless --mode gather|quan --seed 1 --ticks 600 --out out.jsonl`
 - Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather|quan` (mở địa chỉ in ra; WASD, E, Space, R)
 - Test lát day Phase 2 trên PowerShell: `$env:PYTHONPATH='tests;.'; python3 -m unittest tests.test_day -v`.
+- Benchmark v1.3 (cần Chrome/Chromium/Edge): `python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json`; soak: `python3 -m chonoi.soak --seed 7 --days 10 --out soak.json`.
 - Chạy day v1.1: `python3 -m chonoi.live --mode day --days 5` (Esc/P tạm dừng), `python3 -m chonoi.headless --mode day --days 1 --seed 1 --ticks 22200 --out out.jsonl`.
 
 ## Cấu trúc & quy ước
