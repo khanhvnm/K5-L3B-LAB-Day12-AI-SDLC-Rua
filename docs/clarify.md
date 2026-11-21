@@ -11,3 +11,5 @@
 | Q4 | 2026-11-21 P1 | Khách ăn xong đúng tick hết ca: `paid.reason` là gì? | Giả định: `finished_eating` (luật "ăn xong trả tiền" xét trước); khách còn đang ăn khác trả với `closing`. | Trà (giả định) |
 | Q5 | 2026-11-21 P1 | "Chọn đều theo seed" làm thế nào? | Luồng RNG `customers` (`Streams`), `randrange` trên danh sách món đủ nguyên liệu khả dụng, sắp theo id món (mã Unicode). | Trà |
 | Q6 | 2026-11-21 P1 | Sai số float của uy tín (3.0 + 0.2 + …) làm lệch `floor` trong điểm? | Làm tròn uy tín 6 chữ số sau mỗi lần đổi, sau khi kẹp `[reputation_min, reputation_max]`. | Trà |
+| P2-UI-01 | Phase 2 | Khi nào rời EveningIntro và DayResult? | Ticket chỉ nêu thời gian tự chuyển cho DayIntro (4 giây). Nhánh UI dùng nút hoặc phím để tiếp tục ở hai màn còn lại; các màn chỉ dừng vòng tick trên trình duyệt. | Giả định lát UI, chờ PO xác nhận |
+| P2-D-01 | Phase 2 | Kiểm mâu thuẫn fixture quán khi kho thật chỉ có ở cuối gather? | Kiểm cấu trúc trước, kiểm món theo kế hoạch và kho thật khi mở quán. CLI trả mã 2 và giữ nguyên file đích nếu có lỗi muộn. | TICKET-02 §4.3; điều phối Thành |

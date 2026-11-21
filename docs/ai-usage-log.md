@@ -8,3 +8,5 @@
 
 
 Phase 1 — Khánh / Codex (GPT-6): bổ sung test headless cho luật Gather; Khánh chạy 10 test tập trung và toàn bộ 61 test, cả hai lượt đều pass. Khánh đã xem lại đầu ra; proof: `docs/proof/phase-1/gather-rules-tests.md`.
+
+Phase 2 — Thành / Codex: đối chiếu TICKET-02 từ session trước, nối điều phối day/Pause với CLI và UI, kiểm JSONL, regression và Chrome headless. Shop và kế hoạch fixture chỉ kiểm giao diện tích hợp; xem [bằng chứng lát D/E](proof/phase-2/day-ui.md).

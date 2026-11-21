@@ -23,7 +23,7 @@ def load_contract(path=DEFAULT_PATH) -> dict:
             c = json.load(f)
     except (OSError, ValueError) as e:
         raise BadInput(f"không đọc được {path}: {e}")
-    validate_tuning(c.get("tuning"))
+    validate_tuning(c.get("tuning"), c.get("contract_version", "1.0"))
     return c
 
 
@@ -50,7 +50,7 @@ def _bounds(name, b, keys):
             raise BadInput(f"tuning.{name}.bounds.{k} phải là [0, số dương]")
 
 
-def _validate_gather(g):
+def _validate_gather(g, version):
     """Dải hợp lệ P1 theo PRD mục 13.2."""
     _between("gather.duration_s", g.get("duration_s"), 60, 600)
     _bounds("gather", g.get("bounds"), ("x", "d"))
@@ -82,19 +82,26 @@ def _validate_gather(g):
     if not isinstance(nodes, list) or not nodes:
         raise BadInput("tuning.gather.nodes phải là mảng không rỗng")
     seen, kinds = set(), set()
+    node_kinds = {"bong_dien_dien", "bong_sung"}
+    if version == "1.1":
+        node_kinds.add("keo_neo")
     for n in nodes:
         if not isinstance(n, dict) or not isinstance(n.get("id"), str) or n["id"] in seen:
             raise BadInput("tuning.gather.nodes: mỗi nút cần id duy nhất")
         seen.add(n["id"])
-        if n.get("kind") not in ("bong_dien_dien", "bong_sung"):
-            raise BadInput(f"tuning.gather.nodes.{n['id']}: kind phải là bong_dien_dien hoặc bong_sung")
+        if n.get("kind") not in node_kinds:
+            raise BadInput(f"tuning.gather.nodes.{n['id']}: kind không hợp lệ")
         kinds.add(n["kind"])
         _pos_in(f"gather.nodes.{n['id']}.pos", n.get("pos"), b, ("x", "d"))
         if n["pos"][1] != 0:
             raise BadInput(f"tuning.gather.nodes.{n['id']}: nút hái nằm ở mặt nước (d = 0)")
-    if kinds != {"bong_dien_dien", "bong_sung"}:
-        raise BadInput("tuning.gather.nodes phải có ít nhất một nút mỗi loại (bong_dien_dien, bong_sung)")
+    if kinds != node_kinds:
+        raise BadInput("tuning.gather.nodes phải có ít nhất một nút mỗi loại")
     fish = g.get("fish_initial")
+    if version == "1.1":
+        _int_between("gather.fish_max", g.get("fish_max"), 1, 10_000)
+        _int_between("gather.fish_initial", fish, 1, g["fish_max"])
+        return
     if not isinstance(fish, list) or len(fish) != 6:
         raise BadInput("tuning.gather.fish_initial phải là danh sách đúng 6 đàn")
     seen = set()
@@ -109,13 +116,13 @@ def _validate_gather(g):
             raise BadInput(f"tuning.gather.fish_initial.{f['id']}: đàn cá phải ở dưới nước")
 
 
-def validate_tuning(t):
+def validate_tuning(t, version="1.0"):
     if not isinstance(t, dict):
         raise BadInput("thiếu khối tuning")
     g, q, menu = t.get("gather"), t.get("quan"), t.get("menu")
     if not isinstance(g, dict) or not isinstance(q, dict) or not isinstance(menu, dict):
         raise BadInput("tuning phải có gather, quan, menu")
-    _validate_gather(g)
+    _validate_gather(g, version)
     # Quán: dải hợp lệ P1 (PRD mục 13.2)
     _between("quan.duration_s", q.get("duration_s"), 60, 600)
     _bounds("quan", q.get("bounds"), ("x", "z"))

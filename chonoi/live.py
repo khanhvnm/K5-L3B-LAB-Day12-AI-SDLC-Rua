@@ -1,11 +1,13 @@
 """Cửa sổ chơi trực tiếp bằng TRÌNH DUYỆT, chỉ dùng thư viện chuẩn Python.
 
-    python3 -m chonoi.live --mode gather|quan [--seed N] [--port 8000]
+    python3 -m chonoi.live --mode gather|quan|day [--days N] [--seed N] [--port 8000]
 
 Máy chủ HTTP nhỏ (ThreadingHTTPServer) phục vụ `chonoi/web/index.html` và hai API:
     GET  /state  -> snapshot JSON hiện tại (cùng trường như dòng snapshot của headless) + `meta` + `events`
-    POST /input  -> {"move": [a, b], "interact": bool, "catch": bool}   (trạng thái phím đang giữ)
+    POST /input  -> move, interact, catch, pause, shop_done (chốt phím); buy (lệnh một lần)
     POST /restart -> chơi lại từ đầu (cùng seed, cùng scenario)
+    POST /advance -> đi tiếp từ một màn trình bày, dựa trên screen_id
+    POST /menu    -> về menu, dừng gameplay
 
 Mô phỏng chạy 60 tick/s trong một luồng nền, dùng CÙNG lớp sim như headless (qua `runner.Session`).
 Client chỉ ĐỌC snapshot và tự bỏ qua trường chưa có, nên luật do nhóm viết thêm trường nào cũng không vỡ.
@@ -23,10 +25,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .contract import load_contract
 from .errors import BadInput
-from .inputs import LiveInputs
+from .inputs import BUTTONS_V11, LiveInputs
 from .inventory import read_inventory
-from .runner import Session
-from .scenario import load_scenario
+from .runner import create_session
+from .scenario import ingredient_kinds, load_scenario
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 TICK_S = 1.0 / 60.0
@@ -37,20 +39,26 @@ RECENT_EVENTS = 40
 class LiveGame:
     """Một lượt chơi + luồng nền bước 60 tick/s. Mọi truy cập trạng thái đi qua khóa."""
 
-    def __init__(self, mode, tuning, scenario, seed, inventory=None, inventory_out=None):
-        self._args = (mode, tuning, scenario, seed, inventory)
+    def __init__(self, mode, tuning, scenario, seed, inventory=None, inventory_out=None, days=1):
+        self._args = (mode, tuning, scenario, seed, inventory, days)
         self.mode = mode
         self.tuning = tuning
         self.inventory_out = inventory_out
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
-        self._reset()
+        self.screen_id = 0
+        self._reset("menu" if mode == "day" else "playing")
 
-    def _reset(self):
-        self.session = Session(*self._args)
-        self.inputs = LiveInputs()
-        self.events = []
+    def _set_screen(self, screen):
+        self.screen = screen
+        self.screen_id += 1
+
+    def _reset(self, screen):
+        self.session = create_session(*self._args)
+        self.inputs = LiveInputs(BUTTONS_V11)
+        self.events = list(self.session.initial_events)
+        self._set_screen(screen)
         self._saved = False
         self.error = None
 
@@ -74,8 +82,7 @@ class LiveGame:
                 except Exception:  # luật của nhóm lỗi: báo ra terminal + client, dừng bước (restart để chơi lại)
                     self.error = traceback.format_exc()
                     sys.stderr.write(self.error)
-                    self.session.sim.done = True
-                    self.session.sim.reason = "error"
+                    self._set_screen("error")
             delay = nxt - time.perf_counter()
             if delay > 0:
                 self._stop.wait(delay)
@@ -84,11 +91,23 @@ class LiveGame:
 
     def _tick_once(self):
         s = self.session
-        if s.done:
+        if self.screen != "playing" or s.done:
             return
+        phase, day = getattr(s, "phase", None), getattr(s, "day", None)
         for row in s.step(self.inputs.advance()):
             self.events.append(row)
         del self.events[:-RECENT_EVENTS]
+        if s.paused:
+            self.inputs.discard_actions()
+        if self.mode == "day":
+            if s.done:
+                self._set_screen("summary")
+            elif day != s.day:
+                self._set_screen("day_intro")
+            elif phase != s.phase:
+                self._set_screen({"quan": "evening_intro", "shop": "day_result"}[s.phase])
+        if self.screen != "playing":
+            self.inputs.discard_actions()
         if s.done and not self._saved:
             self._saved = True
             if self.inventory_out:
@@ -100,12 +119,27 @@ class LiveGame:
     # --- API cho handler -----------------------------------------------------------
     def state_json(self) -> bytes:
         with self._lock:
-            snap = self.session.snapshot()
-            snap["meta"] = self.tuning[self.mode]
+            s = self.session
+            snap = s.snapshot()
+            phase = snap["phase"]
+            phase_tuning = s.phase_tuning if self.mode == "day" and phase == "gather" else self.tuning
+            snap["meta"] = phase_tuning[phase]
+            snap["menu"] = self.tuning["menu"]
+            snap["screen"] = self.screen
+            snap["screen_id"] = self.screen_id
             snap["events"] = list(self.events)
-            snap["finished"] = self.session.done
-            snap["reason"] = self.session.sim.reason if self.session.done else None
+            snap["finished"] = s.done
+            snap["reason"] = s.reason if s.done else None
             snap["error"] = self.error
+            if self.mode == "day":
+                snap.update(s.browser_details())
+            if phase == "quan":
+                stock = dict(snap["stock"])
+                for customer in snap["customers"]:
+                    for kind, amount in customer.get("reserved", {}).items():
+                        stock[kind] = stock.get(kind, 0) - amount
+                snap["available_stock"] = {kind: amount for kind, amount in stock.items() if amount > 0}
+                snap["shift_earned"] = s.sim.shift_earned
             return json.dumps(snap, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
     def set_input(self, body: dict):
@@ -116,17 +150,39 @@ class LiveGame:
             if not ok:
                 raise ValueError("move phải là [a, b] trong [-1, 1]")
         buttons = {}
-        for b in ("interact", "catch"):
+        for b in BUTTONS_V11:
             if b in body:
                 if not isinstance(body[b], bool):
                     raise ValueError(f"{b} phải là boolean")
                 buttons[b] = body[b]
+        if "buy" in body and (not isinstance(body["buy"], str) or not body["buy"]):
+            raise ValueError("buy phải là chuỗi khác rỗng")
         with self._lock:
-            self.inputs.set(move, **buttons)
+            active = self.screen == "playing" and not self.session.done
+            shop = active and self.mode == "day" and self.session.phase == "shop"
+            self.inputs.set(move, **buttons, buy=body.get("buy") if shop else None)
+            if not active or (self.session.paused and not self.inputs.resume_pending()):
+                self.inputs.discard_actions()
 
     def restart(self):
         with self._lock:
-            self._reset()
+            self._reset("day_intro" if self.mode == "day" else "playing")
+
+    def menu(self):
+        with self._lock:
+            self._set_screen("menu")
+
+    def advance(self, screen_id):
+        if type(screen_id) is not int:
+            raise ValueError("screen_id phải là số nguyên")
+        with self._lock:
+            if screen_id != self.screen_id:
+                return
+            if self.screen == "menu":
+                self._reset("day_intro" if self.mode == "day" else "playing")
+            elif self.screen in {"day_intro", "evening_intro", "day_result"}:
+                self.inputs.discard_actions()
+                self._set_screen("playing")
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -135,6 +191,13 @@ class _Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):  # yên lặng
         pass
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            # Trình duyệt có thể đóng kết nối poll ngay khi rời tab.
+            pass
 
     def _send(self, code, body: bytes, ctype="application/json; charset=utf-8"):
         self.send_response(code)
@@ -168,13 +231,18 @@ class _Handler(BaseHTTPRequestHandler):
             return
         raw = self.rfile.read(n) if n else b""
         try:
-            if path == "/input":
+            if path in ("/input", "/advance"):
                 body = json.loads(raw.decode("utf-8") or "{}")
                 if not isinstance(body, dict):
                     raise ValueError("body phải là object")
-                self.game.set_input(body)
+                if path == "/input":
+                    self.game.set_input(body)
+                else:
+                    self.game.advance(body.get("screen_id"))
             elif path == "/restart":
                 self.game.restart()
+            elif path == "/menu":
+                self.game.menu()
             else:
                 self._send(404, b'{"error":"khong co"}')
                 return
@@ -215,7 +283,8 @@ class LiveServer:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="chonoi.live", description="Chơi trực tiếp trên trình duyệt (starter).")
-    p.add_argument("--mode", required=True, choices=["gather", "quan"])
+    p.add_argument("--mode", required=True, choices=["gather", "quan", "day"])
+    p.add_argument("--days", type=int)
     p.add_argument("--seed", type=int, default=1)
     p.add_argument("--port", type=int, default=8000, help="0 = cổng ngẫu nhiên")
     p.add_argument("--host", default="127.0.0.1")
@@ -224,16 +293,19 @@ def main(argv=None) -> int:
     p.add_argument("--inventory-out", dest="inventory_out", help="chỉ với gather: ghi kho khi kết thúc buổi")
     a = p.parse_args(argv)
     try:
+        if a.days is not None and (a.mode != "day" or not 1 <= a.days <= 5):
+            raise BadInput("--days chỉ dùng với day và phải trong [1, 5]")
         if a.inventory and a.mode != "quan":
             raise BadInput("--inventory chỉ dùng với quan")
         if a.inventory_out and a.mode != "gather":
             raise BadInput("--inventory-out chỉ dùng với gather")
         tuning = load_contract()["tuning"]
         scenario = load_scenario(a.scenario, a.mode, tuning)
-        inventory = read_inventory(a.inventory) if a.inventory else None
+        inventory = read_inventory(a.inventory, ingredient_kinds(tuning)) if a.inventory else None
         if inventory is not None and "stock" in scenario:
             raise BadInput("vừa có quan.stock vừa có --inventory")
-        game = LiveGame(a.mode, tuning, scenario, a.seed, inventory, a.inventory_out)
+        game = LiveGame(a.mode, tuning, scenario, a.seed, inventory, a.inventory_out,
+                        days=1 if a.days is None else a.days)
         server = LiveServer(game, a.host, a.port)
     except BadInput as e:
         sys.stderr.write(f"đầu vào sai: {e}\n")
