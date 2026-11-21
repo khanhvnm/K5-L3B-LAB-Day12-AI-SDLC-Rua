@@ -4,6 +4,7 @@ import json
 import os
 
 from .errors import BadInput
+from .dayplan import plan_ingredients, validate_day_plan  # noqa: F401 (plan_ingredients giữ để tương thích import cũ)
 from .inventory import KINDS
 
 FISH_KINDS = ("ca_linh", "ca_loc", "ca_keo")
@@ -203,27 +204,9 @@ def validate_tuning(t):
     _validate_day(t, menu)
 
 
-def plan_ingredients(dishes, menu):
-    """Tổng nguyên liệu của một kế hoạch ngày = Σ công thức × số suất (Contract v1.1, day_plan)."""
-    total = {}
-    for dish_id, n in dishes.items():
-        for ing, amount in menu[dish_id]["recipe"].items():
-            total[ing] = total.get(ing, 0) + amount * n
-    return dict(sorted(total.items()))
-
-
 def _validate_day(t, menu):
-    """day_plan (5 ngày) và shop (nâng cấp theo cấp) — có từ v1.1."""
-    plan = t.get("day_plan")
-    if not isinstance(plan, list) or [p.get("day") if isinstance(p, dict) else None for p in plan] != [1, 2, 3, 4, 5]:
-        raise BadInput("tuning.day_plan phải là mảng 5 object theo day 1..5")
-    for p in plan:
-        d = p.get("dishes")
-        if not isinstance(d, dict) or not d or any(k not in menu or isinstance(v, bool) or not isinstance(v, int) or v <= 0
-                                                    for k, v in d.items()):
-            raise BadInput(f"tuning.day_plan[{p['day']}].dishes phải là map món trong thực đơn → số nguyên dương")
-        if p.get("ingredients") != plan_ingredients(d, menu):
-            raise BadInput(f"tuning.day_plan[{p['day']}].ingredients không khớp công thức × số suất")
+    """day_plan (5 ngày, kiểm ở chonoi/dayplan.py — một nguồn duy nhất) và shop (nâng cấp theo cấp) — có từ v1.1."""
+    validate_day_plan(t.get("day_plan"), menu)
     shop = t.get("shop")
     if not isinstance(shop, dict):
         raise BadInput("thiếu tuning.shop")
