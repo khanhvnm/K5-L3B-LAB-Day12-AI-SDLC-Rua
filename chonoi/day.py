@@ -3,6 +3,7 @@ import copy
 import math
 
 from .errors import BadInput
+from .inventory import counts as count_items
 from .dayplan import MAX_DAYS, day_plan_event, plan_for_day, resolve_day_plan
 from .ids import IdAllocator
 from .rng import Streams
@@ -80,7 +81,8 @@ class DaySession:
         self.delivered = {}
         fixture = copy.deepcopy(self.scenario.get("gather", {}))
         # Fixture vẫn được giữ; khi không khai oxy/Máu thì sim dùng mức đầy theo cấp.
-        self.sim = GatherSim(self.phase_tuning, fixture, self.streams, self.ids, day=self.day)
+        self.sim = GatherSim(self.phase_tuning, fixture, self.streams, self.ids, day=self.day,
+                             renew_hold_ids=self.day > 1)
         self._carry()
 
     def _carry(self):
@@ -120,7 +122,7 @@ class DaySession:
             return rows
         if old_phase == "gather":
             inventory = self.sim.inventory_items()
-            self.delivered = copy.deepcopy(inventory)
+            self.delivered = count_items(inventory)  # EveningIntro hiện số lượng nhập kho theo loại
             planned = self.plan["dishes"]
             fixture_tuning = dict(self.tuning, menu={key: self.tuning["menu"][key] for key in planned})
             fixture = copy.deepcopy(self.scenario.get("quan", {}))

@@ -68,6 +68,9 @@ class QuanSim:
         self._tgt = None
         self._ramp_left = 0
         # kho: --inventory HOẶC scenario.stock (cả hai -> cli đã báo mã 2); thiếu cả hai -> kho rỗng
+        if isinstance(inventory, list):  # ADAPTER TẠM v1.2: kho cá thể -> đếm hàng chưa ươn (lát Quán sẽ thay)
+            from ..inventory import counts, spoiled_below
+            inventory = counts(inventory, spoiled_below(tuning))
         self.stock = _clean_items(dict(inventory if inventory is not None else scenario.get("stock", {})))
         self.hand = _payload(scenario.get("hand"))
         self.phase_tick = 0

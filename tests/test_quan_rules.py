@@ -119,7 +119,9 @@ class Customers(unittest.TestCase):
                             ({"ca_loc": 1, "bong_dien_dien": 1}, None),  # cá lóc nướng hoặc canh chua
                             ({"ca_linh": 2, "ca_keo": 1, "keo_neo": 1, "bong_dien_dien": 1}, "lau_mam")):
             with Workdir() as w:
-                inv = write_json(w.path("inv.json"), {"items": stock})
+                items = [{"id": f"I{i}", "kind": k, "fresh": 100}  # v1.2: file kho cá thể
+                         for i, k in enumerate((k for k, n in stock.items() for _ in range(n)), 1)]
+                inv = write_json(w.path("inv.json"), {"items": items})
                 code, err = run_headless("--mode", "quan", "--seed", "3", "--ticks", str(FIRST), "--inventory", inv,
                                          "--out", w.path("q.jsonl"))
                 self.assertEqual(code, 0, err)

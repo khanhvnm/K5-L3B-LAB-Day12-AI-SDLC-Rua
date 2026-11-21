@@ -9,7 +9,7 @@ from chonoi.day import DaySession
 from chonoi.headless import main
 from chonoi.inputs import BUTTONS_V11, InputPlayer, InputState
 from chonoi.live import LiveGame
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import Workdir, events, frames, make_items, read_jsonl, run_headless, snapshots, write_json
 
 
 def day_tuning(shop_ticks=2):
@@ -27,7 +27,7 @@ class DayTests(unittest.TestCase):
         tuning = day_tuning()
         scenario = {
             "day": {"money": 200, "earned": 200, "day_plan": [{"day": 1, "dishes": {"ca_loc_nuong_trui": 2}}]},
-            "gather": {"hold": ["ca_loc", "bong_sung"], "time_left_ticks": 1},
+            "gather": {"hold": make_items(["ca_loc", "bong_sung"]), "time_left_ticks": 1},
             "quan": {"time_left_ticks": 1},
         }
         with Workdir() as w, patch("chonoi.headless.load_contract", return_value={"tuning": tuning}):
@@ -71,7 +71,7 @@ class DayTests(unittest.TestCase):
 
     def test_faint_handoff_and_last_tick_shop(self):
         sc = {"day": {"money": 200, "earned": 200},
-              "gather": {"hold": ["ca_loc"], "player": {"pos": [30, 10], "oxygen_ticks": 0,
+              "gather": {"hold": make_items(["ca_loc"]), "player": {"pos": [30, 10], "oxygen_ticks": 0,
                                                        "zero_oxy_ticks": 59, "hp": 1}},
               "quan": {"time_left_ticks": 1}}
         s = DaySession(day_tuning(1), sc, 1)
@@ -100,7 +100,7 @@ class DayTests(unittest.TestCase):
                 {"quan": {"reputation": 3}},
                 {"gather": {"time_left_ticks": 1, "hold": ["ca_keo", "ca_keo"]},
                  "quan": {"customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_keo_nuong"}]}},
-                {"gather": {"time_left_ticks": 1, "hold": ["ca_loc"]},
+                {"gather": {"time_left_ticks": 1, "hold": make_items(["ca_loc"])},
                  "quan": {"customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_loc_nuong_trui",
                                          "reserved": {"ca_loc": 1}},]}},
             ]
@@ -116,7 +116,7 @@ class DayTests(unittest.TestCase):
 
     def test_plan_filters_menu_without_capping_sales(self):
         sc = {"day": {"day_plan": [{"day": 1, "dishes": {"ca_loc_nuong_trui": 1}}]},
-              "gather": {"hold": ["bong_sung", "bong_sung", "ca_loc", "ca_loc"], "time_left_ticks": 1}}
+              "gather": {"hold": make_items(["bong_sung", "bong_sung", "ca_loc", "ca_loc"]), "time_left_ticks": 1}}
         tuning = day_tuning()
         s = DaySession(tuning, sc, 1)
         s.step(input_state())
@@ -153,7 +153,7 @@ class DayTests(unittest.TestCase):
         self.assertFalse(following.pressed("shop_done"))
 
     def test_live_screens_gate_the_clock_and_summary(self):
-        sc = {"gather": {"hold": ["ca_loc"], "time_left_ticks": 1}, "quan": {"time_left_ticks": 1}}
+        sc = {"gather": {"hold": make_items(["ca_loc"]), "time_left_ticks": 1}, "quan": {"time_left_ticks": 1}}
         game = LiveGame("day", day_tuning(), sc, 42)
 
         def state():
