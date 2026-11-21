@@ -1,52 +1,14 @@
-"""Điều phối day v1.1; không sở hữu luật cá/quái/quán hoặc mua hàng.
-
-Shop factory: ShopSim(tuning, scenario, streams, ids). scenario có stock,
-money, earned, reputation, upgrades. Shop cung cấp snapshot(), step(InputState)
-trả (name, data) theo §4.5, done, time_left_ticks, money, earned, reputation,
-upgrades. Điều phối chỉ gọi step khi không pause. Tests có thể truyền factory riêng.
-"""
+"""Điều phối gather → quan → shop, chuyển trạng thái giữa các Ngày theo §4.5."""
 import copy
 import math
 
 from .errors import BadInput
+from .dayplan import MAX_DAYS, day_plan_event, plan_for_day, resolve_day_plan
 from .ids import IdAllocator
 from .rng import Streams
 from .sim.gather import GatherSim
 from .sim.quan import QuanSim
-
-
-def plans_for_days(tuning, overrides=None):
-    plans = tuning.get("day_plan")
-    if not isinstance(plans, list) or len(plans) != 5:
-        raise BadInput("day cần preset day_plan 5 Ngày do chủ contract v1.1 cung cấp")
-    by_day = {}
-    if overrides is not None and not isinstance(overrides, list):
-        raise BadInput("day.day_plan phải là mảng theo Ngày")
-    for entries in (plans, overrides or []):
-        seen = set()
-        for p in entries:
-            if (not isinstance(p, dict) or set(p) - {"day", "dishes", "ingredients"}
-                    or type(p.get("day")) is not int or not 1 <= p["day"] <= 5 or p["day"] in seen):
-                raise BadInput("day_plan ghi đè sai/trùng Ngày")
-            seen.add(p["day"])
-            by_day[p["day"]] = copy.deepcopy(p)
-    for plan in by_day.values():
-        dishes = plan.get("dishes")
-        if not isinstance(dishes, dict) or not dishes:
-            raise BadInput("day_plan.dishes phải là map khác rỗng")
-        items = {}
-        for dish, count in dishes.items():
-            if dish not in tuning["menu"] or isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-                raise BadInput("món/số suất trong day_plan không hợp lệ")
-            for kind, amount in tuning["menu"][dish]["recipe"].items():
-                items[kind] = items.get(kind, 0) + amount * count
-        if "ingredients" in plan:
-            declared = plan["ingredients"]
-            if not isinstance(declared, dict) or any(type(v) is not int for v in declared.values()) or declared != items:
-                raise BadInput("day_plan.ingredients không khớp công thức × số suất")
-        plan["dishes"] = dict(sorted(dishes.items()))
-        plan["ingredients"] = dict(sorted(items.items()))
-    return by_day
+from .sim.shop import ShopSim, active_stats
 
 
 def validate_day(block, tuning):
@@ -72,41 +34,21 @@ def validate_day(block, tuning):
             raise BadInput("cấp nâng cấp không hợp lệ")
     if "day_plan" in block and not isinstance(block["day_plan"], list):
         raise BadInput("day.day_plan phải là mảng theo Ngày")
-    return plans_for_days(tuning, block.get("day_plan"))
+    return resolve_day_plan(tuning, block.get("day_plan"))
 
 
-def gather_tuning(tuning, upgrades, day):
-    cfg = copy.deepcopy(tuning)
-    for kind, level in upgrades.items():
-        row = next((r for r in tuning["shop"]["upgrades"][kind] if r["level"] == level), {})
-        for key in ("oxygen_max_s", "hp_max"):
-            if key in row:
-                cfg["gather"][key] = row[key]
-    monsters = cfg["gather"].get("monsters", {})
-    if "spawns" in monsters:
-        monsters["spawns"] = [m for m in monsters["spawns"] if m["from_day"] <= day]
-    return cfg
+def gather_tuning(tuning, upgrades):
+    return dict(tuning, gather=dict(tuning["gather"], **active_stats(tuning, upgrades)))
 
 
 class DaySession:
-    def __init__(self, tuning, scenario, seed, days=1, shop_factory=None):
-        if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= 5:
-            raise BadInput("--days phải trong [1,5]")
+    def __init__(self, tuning, scenario, seed, days=1):
+        if type(days) is not int or not 1 <= days <= MAX_DAYS:
+            raise BadInput(f"--days phải trong [1,{MAX_DAYS}]")
         from .scenario import validate_day_scenario
         self.plans = validate_day_scenario(scenario, tuning)
         self.tuning, self.scenario = copy.deepcopy(tuning), copy.deepcopy(scenario)
         state = scenario.get("day", {})
-        if "shop" not in tuning:
-            raise BadInput("day cần preset shop của contract v1.1")
-        if shop_factory is None:
-            try:
-                from .sim.shop import ShopSim
-                shop_factory = ShopSim
-            except ModuleNotFoundError as error:
-                if error.name != f"{__package__}.sim.shop":
-                    raise
-                raise BadInput("Chưa tích hợp sim/shop.py của Khánh; xem giao diện trong chonoi/day.py") from error
-        self.shop_factory = shop_factory
         self.mode, self.day, self.days, self.days_completed = "day", 1, days, 0
         self.tick = self.sim_tick = self.phase_tick = 0
         self.paused = self.done = False
@@ -124,22 +66,21 @@ class DaySession:
                 "day": self.day, "name": name, "data": copy.deepcopy(data)}
 
     def _start_events(self):
-        return [self._row("day_start", {}), self._row("day_plan", {
-            "dishes": self.plan["dishes"], "ingredients": self.plan["ingredients"]}),
+        return [self._row("day_start", {}), self._row(*day_plan_event(self.plan)),
             self._row("phase_start", {})]
 
     def _new_day(self):
         self.active_upgrades = copy.deepcopy(self.upgrades)
-        self.plan = self.plans[self.day]
+        self.plan = plan_for_day(self.plans, self.day)
         self.phase, self.phase_tick = "gather", 0
-        self.phase_tuning = gather_tuning(self.tuning, self.active_upgrades, self.day)
+        self.phase_tuning = gather_tuning(self.tuning, self.active_upgrades)
         self.day_start_earned = self.earned
         self.day_start_reputation = self.reputation
         self.statistics = {"served": 0, "left": 0, "tips": 0}
         self.delivered = {}
         fixture = copy.deepcopy(self.scenario.get("gather", {}))
         # Fixture vẫn được giữ; khi không khai oxy/Máu thì sim dùng mức đầy theo cấp.
-        self.sim = GatherSim(self.phase_tuning, fixture, self.streams, self.ids)
+        self.sim = GatherSim(self.phase_tuning, fixture, self.streams, self.ids, day=self.day)
         self._carry()
 
     def _carry(self):
@@ -158,7 +99,12 @@ class DaySession:
         self.sim_tick += 1
         self.phase_tick += 1
         old_phase = self.phase
-        events = self.sim.step(inp)
+        if old_phase == "shop":
+            events = self.sim.step(buy=inp.buy, shop_done=inp.pressed("shop_done"))
+            self.upgrades = self.sim.upgrades.copy()
+        else:
+            events = self.sim.step(inp)
+            self.reputation = self.sim.reputation
         rows.extend(self._row(name, data, old_phase) for name, data in events)
         for name, data in events:
             if name == "served":
@@ -169,27 +115,23 @@ class DaySession:
                 self.statistics["tips"] += data["tip"]
             elif name == "customer_left":
                 self.statistics["left"] += 1
-        self.money, self.earned, self.reputation = self.sim.money, self.sim.earned, self.sim.reputation
-        if old_phase == "shop":
-            self.upgrades = copy.deepcopy(self.sim.upgrades)
+        self.money, self.earned = self.sim.money, self.sim.earned
         if not self.sim.done:
             return rows
         if old_phase == "gather":
             inventory = self.sim.inventory_items()
             self.delivered = copy.deepcopy(inventory)
-            cfg = copy.deepcopy(self.tuning)
-            cfg["menu"] = {k: v for k, v in cfg["menu"].items() if k in self.plan["dishes"]}
+            planned = self.plan["dishes"]
+            fixture_tuning = dict(self.tuning, menu={key: self.tuning["menu"][key] for key in planned})
             fixture = copy.deepcopy(self.scenario.get("quan", {}))
             fixture["reputation"] = self.reputation
             from .scenario import _validate_quan
-            _validate_quan(fixture, cfg)
-            self.sim = QuanSim(cfg, fixture, self.streams, self.ids, inventory=inventory)
+            _validate_quan(fixture, fixture_tuning)
+            self.sim = QuanSim(self.tuning, fixture, self.streams, self.ids, inventory=inventory, plan_dishes=planned)
             self._carry()
             self.phase = "quan"
         elif old_phase == "quan":
-            self.sim = self.shop_factory(self.tuning, {"stock": copy.deepcopy(self.sim.stock),
-                "money": self.money, "earned": self.earned, "reputation": self.reputation,
-                "upgrades": copy.deepcopy(self.upgrades)}, self.streams, self.ids)
+            self.sim = ShopSim(self.tuning, self.money, self.earned, self.upgrades, stock=self.sim.stock, day=self.day)
             self.phase = "shop"
         else:
             self.days_completed += 1

@@ -10,8 +10,9 @@ import math
 
 from .errors import BadInput
 from .inventory import validate_items
+from .sim.monsters import validate_monsters
 
-GATHER_KEYS = {"player", "hold", "nodes", "fish", "random_fish", "time_left_ticks"}
+GATHER_KEYS = {"player", "hold", "nodes", "fish", "monsters", "random_fish", "time_left_ticks"}
 GATHER_PLAYER_KEYS = {"pos", "vel", "heading_deg", "hp", "oxygen_ticks", "zero_oxy_ticks",
                       "invuln_ticks", "catch_cd_ticks"}
 QUAN_PLAYER_KEYS = {"pos", "vel"}
@@ -63,7 +64,7 @@ def validate_day_scenario(data, tuning):
         raise BadInput("scenario day chỉ nhận các khối day, gather, quan")
     state = data.get("day", {})
     plans = validate_day(state, tuning)
-    validate_phase(data.get("gather", {}), "gather", gather_tuning(tuning, state.get("upgrades", {}), 1))
+    validate_phase(data.get("gather", {}), "gather", gather_tuning(tuning, state.get("upgrades", {})))
     quan = validate_phase(data.get("quan", {}), "quan", tuning)
     if {"stock", "reputation"} & quan.keys():
         raise BadInput("day cấm quan.stock và quan.reputation")
@@ -74,8 +75,6 @@ def validate_phase(block, mode, tuning):
     if not isinstance(block, dict):
         raise BadInput(f"khối {mode} phải là object")
     allowed = GATHER_KEYS if mode == "gather" else QUAN_KEYS
-    if mode == "gather" and "monsters" in tuning["gather"]:
-        allowed = allowed | {"monsters"}
     extra = set(block) - allowed
     if extra:
         raise BadInput(f"trường lạ/chưa hỗ trợ trong {mode}: {sorted(extra)}")
@@ -116,14 +115,17 @@ def _pos(name, pos, bounds, axes=("x", "d")):
 def _validate_gather(b, tuning):
     g = tuning["gather"]
     bounds = g["bounds"]
-    for arr in ("nodes", "fish"):
+    for arr in ("nodes", "fish", "monsters"):
         if arr in b:
             _check_ids(arr, b[arr])
+    if "monsters" in b:
+        validate_monsters(b["monsters"], g)  # v1.1 §4.3: Cá Sấu fixture (lát B)
     if "random_fish" in b and not isinstance(b["random_fish"], bool):
         raise BadInput("random_fish phải là boolean")
     if "hold" in b:
         h = b["hold"]
-        if not isinstance(h, list) or any(not isinstance(k, str) or k not in ingredient_kinds(tuning) for k in h):
+        kinds = ingredient_kinds(tuning)
+        if not isinstance(h, list) or any(not isinstance(k, str) or k not in kinds for k in h):
             raise BadInput("hold phải là mảng id nguyên liệu hợp lệ")
         if len(h) > g["hold_capacity"]:
             raise BadInput("hold vượt sức chứa")
@@ -173,39 +175,6 @@ def _validate_gather(b, tuning):
             raise BadInput(f"fish.{f['id']}.heading_deg phải là số")
         if "age_ticks" in f:
             _nonneg_int(f"fish.{f['id']}.age_ticks", f["age_ticks"])
-    if "monsters" in b:
-        _validate_monsters(b["monsters"], bounds, g["monsters"]["species"])
-
-
-def _validate_monsters(monsters, bounds, species):
-    _check_ids("monsters", monsters)
-    fields = {"id", "kind", "pos", "waypoints", "target_idx", "state", "state_ticks_left", "recoil_dir"}
-    for monster in monsters:
-        name = f"monsters.{monster['id']}"
-        kind = monster.get("kind")
-        if set(monster) - fields or not isinstance(kind, str) or kind not in species:
-            raise BadInput(f"{name}: trường hoặc loài không hợp lệ")
-        limits = dict(bounds, d=species[kind]["depths"])
-        _pos(name + ".pos", monster.get("pos"), limits)
-        waypoints = monster.get("waypoints")
-        if not isinstance(waypoints, list) or len(waypoints) != 2:
-            raise BadInput(f"{name}: cần hai waypoint")
-        for point in waypoints:
-            _pos(name + ".waypoints", point, limits)
-        target = monster.get("target_idx", 1)
-        state = monster.get("state", "patrol")
-        timer = monster.get("state_ticks_left", 0)
-        recoil = monster.get("recoil_dir")
-        _nonneg_int(name + ".state_ticks_left", timer)
-        if type(target) is not int or target not in (0, 1) or state not in ("patrol", "chase", "recoil"):
-            raise BadInput(f"{name}: sai target_idx hoặc state")
-        if state == "recoil":
-            if not (timer > 0 and isinstance(recoil, list) and len(recoil) == 2
-                    and all(_num(x) and -1 <= x <= 1 for x in recoil)
-                    and math.isclose(math.hypot(*recoil), 1, abs_tol=1e-6)):
-                raise BadInput(f"{name}: recoil cần timer dương và hướng đơn vị")
-        elif recoil is not None or timer:
-            raise BadInput(f"{name}: chỉ recoil có hướng và timer")
 
 
 def _pos_int(v):

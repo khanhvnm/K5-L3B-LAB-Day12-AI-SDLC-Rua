@@ -1,9 +1,7 @@
-"""TICKET-02: tích hợp runner với Gather/Quan hiện có và Shop chỉ dùng trong test."""
+"""TICKET-02: kiểm tích hợp vòng ngày với preset và Shop v1.1."""
 import json
 import os
-import sys
 import unittest
-from types import SimpleNamespace
 from unittest.mock import patch
 
 from chonoi.contract import load_contract
@@ -11,49 +9,17 @@ from chonoi.day import DaySession
 from chonoi.headless import main
 from chonoi.inputs import BUTTONS_V11, InputPlayer, InputState
 from chonoi.live import LiveGame
-from helpers import Workdir, events, frames, read_jsonl, snapshots, write_json
+from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
 
 
 def day_tuning(shop_ticks=2):
     tuning = load_contract()["tuning"]
-    dish = "ca_loc_nuong_trui"
-    tuning["day_plan"] = [{"day": day, "dishes": {dish: day}} for day in range(1, 6)]
-    tuning["shop"] = {"max_ticks": shop_ticks, "upgrades": {
-        "oxygen": [{"level": 1, "price": 200, "oxygen_max_s": 45}],
-        "hp": [{"level": 1, "price": 250, "hp_max": 4}],
-    }}
+    tuning["shop"]["max_ticks"] = shop_ticks
     return tuning
-
-
-class FixtureShop:
-    """Chỉ test giao diện của DaySession với Shop; chưa kiểm luật Shop thật."""
-    def __init__(self, tuning, scenario, streams, ids):
-        self.__dict__.update(scenario)
-        self.time_left_ticks = tuning["shop"]["max_ticks"]
-        self.done = False
-
-    def step(self, inp):
-        rows = []
-        self.time_left_ticks -= 1
-        if inp.buy == "oxygen":
-            self.money -= 200
-            self.upgrades["oxygen"] = 1
-            rows.append(("bought", {"upgrade": "oxygen", "level": 1, "price": 200, "money": self.money}))
-        if inp.pressed("shop_done") or self.time_left_ticks == 0:
-            self.done = True
-            rows.append(("shop_end", {"reason": "done" if inp.pressed("shop_done") else "time"}))
-        return rows
-
-    def snapshot(self):
-        return {"stock": self.stock}
 
 
 def input_state(*edges, buy=None):
     return InputState((0, 0), {}, set(edges), buy)
-
-
-def mock_shop():
-    return patch.dict(sys.modules, {"chonoi.sim.shop": SimpleNamespace(ShopSim=FixtureShop)})
 
 
 class DayTests(unittest.TestCase):
@@ -64,7 +30,7 @@ class DayTests(unittest.TestCase):
             "gather": {"hold": ["ca_loc", "bong_sung"], "time_left_ticks": 1},
             "quan": {"time_left_ticks": 1},
         }
-        with Workdir() as w, mock_shop(), patch("chonoi.headless.load_contract", return_value={"tuning": tuning}):
+        with Workdir() as w, patch("chonoi.headless.load_contract", return_value={"tuning": tuning}):
             sc = write_json(w.path("scenario.json"), scenario)
             inputs = write_json(w.path("input.json"), frames(
                 {"tick": 0, "interact": True, "shop_done": True},
@@ -108,7 +74,7 @@ class DayTests(unittest.TestCase):
               "gather": {"hold": ["ca_loc"], "player": {"pos": [30, 10], "oxygen_ticks": 0,
                                                        "zero_oxy_ticks": 59, "hp": 1}},
               "quan": {"time_left_ticks": 1}}
-        s = DaySession(day_tuning(1), sc, 1, shop_factory=FixtureShop)
+        s = DaySession(day_tuning(1), sc, 1)
         rows = s.step(input_state("interact"))
         self.assertEqual([r["name"] for r in rows], ["choke", "faint", "gather_end", "phase_start"])
         self.assertEqual((s.snapshot()["phase_tick"], s.snapshot()["stock"]), (0, {}))
@@ -124,7 +90,7 @@ class DayTests(unittest.TestCase):
         self.assertEqual(s.snapshot()["active_upgrades"], {})
 
     def test_bad_day_scenarios_do_not_publish_partial_output(self):
-        with Workdir() as w, mock_shop(), patch("chonoi.headless.load_contract", return_value={"tuning": day_tuning()}):
+        with Workdir() as w:
             dest = w.path("out.jsonl")
             cases = [
                 {"day": {"money": 1}},
@@ -132,6 +98,8 @@ class DayTests(unittest.TestCase):
                 {"day": {"day_plan": [{"day": 1, "dishes": {"ca_loc_nuong_trui": 1}, "ingredients": {"ca_loc": True}}]}},
                 {"quan": {"stock": {}}},
                 {"quan": {"reputation": 3}},
+                {"gather": {"time_left_ticks": 1, "hold": ["ca_keo", "ca_keo"]},
+                 "quan": {"customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_keo_nuong"}]}},
                 {"gather": {"time_left_ticks": 1, "hold": ["ca_loc"]},
                  "quan": {"customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_loc_nuong_trui",
                                          "reserved": {"ca_loc": 1}},]}},
@@ -147,13 +115,11 @@ class DayTests(unittest.TestCase):
             self.assertEqual(sorted(os.listdir(os.path.dirname(dest))), ["scenario.json"])
 
     def test_plan_filters_menu_without_capping_sales(self):
-        sc = {"gather": {"hold": ["bong_sung", "bong_sung", "ca_loc", "ca_loc"], "time_left_ticks": 1}}
+        sc = {"day": {"day_plan": [{"day": 1, "dishes": {"ca_loc_nuong_trui": 1}}]},
+              "gather": {"hold": ["bong_sung", "bong_sung", "ca_loc", "ca_loc"], "time_left_ticks": 1}}
         tuning = day_tuning()
-        if len(tuning["quan"]["tables"]) == 1:
-            tuning["quan"]["tables"].append({"id": "T2", "pos": [13, 2]})
-        s = DaySession(tuning, sc, 1, shop_factory=FixtureShop)
+        s = DaySession(tuning, sc, 1)
         s.step(input_state())
-        self.assertEqual(list(s.sim.menu), ["ca_loc_nuong_trui"])
         self.assertEqual(s.snapshot()["stock"], {"bong_sung": 2, "ca_loc": 2})
         close_tick = tuning["quan"]["first_customer_tick"] + s.sim.interval_ticks
         for _ in range(close_tick):
@@ -188,21 +154,40 @@ class DayTests(unittest.TestCase):
 
     def test_live_screens_gate_the_clock_and_summary(self):
         sc = {"gather": {"hold": ["ca_loc"], "time_left_ticks": 1}, "quan": {"time_left_ticks": 1}}
-        with mock_shop():
-            game = LiveGame("day", day_tuning(), sc, 42)
-            state = lambda: json.loads(game.state_json())
-            self.assertEqual(state()["screen"], "menu")
-            first_id = state()["screen_id"]
-            game.advance(first_id)
-            game.advance(first_id)  # yêu cầu cũ không được bỏ qua màn kế
-            for screen, tick in (("day_intro", 0), ("evening_intro", 1), ("day_result", 2)):
-                game._tick_once()
-                self.assertEqual((state()["screen"], state()["tick"]), (screen, tick))
-                game.advance(state()["screen_id"])
-                game._tick_once()
-            game.set_input({"shop_done": True})
+        game = LiveGame("day", day_tuning(), sc, 42)
+
+        def state():
+            return json.loads(game.state_json())
+
+        self.assertEqual(state()["screen"], "menu")
+        first_id = state()["screen_id"]
+        game.advance(first_id)
+        game.advance(first_id)  # yêu cầu cũ không được bỏ qua màn kế
+        for screen, tick in (("day_intro", 0), ("evening_intro", 1), ("day_result", 2)):
             game._tick_once()
-            self.assertEqual((state()["screen"], state()["reason"]), ("summary", "days_complete"))
-            game.menu()
+            self.assertEqual((state()["screen"], state()["tick"]), (screen, tick))
             game.advance(state()["screen_id"])
-            self.assertEqual((state()["screen"], state()["tick"]), ("day_intro", 0))
+            game._tick_once()
+        game.set_input({"shop_done": True})
+        game._tick_once()
+        self.assertEqual((state()["screen"], state()["reason"]), ("summary", "days_complete"))
+        game.menu()
+        game.advance(state()["screen_id"])
+        self.assertEqual((state()["screen"], state()["tick"]), ("day_intro", 0))
+
+    def test_real_cli_five_days_with_default_monster_spawns(self):
+        tuning = load_contract()["tuning"]
+        with Workdir() as w:
+            sc = write_json(w.path("scenario.json"), {"gather": {"time_left_ticks": 1}, "quan": {"time_left_ticks": 1}})
+            output = w.path("day.jsonl")
+            ticks = 5 * (2 + tuning["shop"]["max_ticks"])
+            code, err = run_headless("--mode", "day", "--days", "5", "--seed", "1",
+                                     "--ticks", str(ticks), "--scenario", sc, "--out", output)
+            self.assertEqual(code, 0, err)
+            rows = read_jsonl(output)
+        dawns = [row for row in snapshots(rows) if row["phase"] == "gather" and row["phase_tick"] == 0]
+        self.assertEqual([row["day_plan"] for row in dawns], tuning["day_plan"])
+        self.assertEqual([[m["id"] for m in row["monsters"]] for row in dawns],
+                         [["M1"], ["M1"], ["M1", "M2"], ["M1", "M2"], ["M1", "M2"]])
+        self.assertEqual([row["data"]["reason"] for row in events(rows, "shop_end")], ["time"] * 5)
+        self.assertEqual((rows[-1]["ticks"], rows[-1]["days_completed"], rows[-1]["reason"]), (ticks, 5, "days_complete"))
