@@ -195,6 +195,28 @@ def _payload(name, p, menu):
         raise BadInput(f"{name}.base_price phải là số nguyên dương")
 
 
+QUAN_ITEM_KEYS = {"id", "kind", "fresh"}
+
+
+def _quan_stock_items(arr, kinds):
+    """quan.stock v1.2 (Ticket-03): mảng cá thể {id, kind, fresh}, id duy nhất, fresh hữu hạn trong [0, 100].
+    Phần giữ trỏ tới cá thể nào, có ươn không, đủ công thức không: kiểm tiếp trong QuanSim._check_fixture."""
+    if not isinstance(arr, list):
+        raise BadInput("quan.stock phải là mảng cá thể {id, kind, fresh} (v1.2)")
+    seen = set()
+    for i, it in enumerate(arr):
+        if not isinstance(it, dict) or set(it) != QUAN_ITEM_KEYS:
+            raise BadInput(f"quan.stock[{i}] phải có đúng các khóa {sorted(QUAN_ITEM_KEYS)}")
+        if not isinstance(it["id"], str) or not it["id"] or it["id"] in seen:
+            raise BadInput(f"quan.stock[{i}].id phải là chuỗi khác rỗng, không trùng")
+        seen.add(it["id"])
+        if it["kind"] not in kinds:
+            raise BadInput(f"quan.stock[{i}].kind lạ: {it['kind']!r}")
+        f = it["fresh"]
+        if not _num(f) or not math.isfinite(f) or not 0 <= f <= 100:
+            raise BadInput(f"quan.stock[{i}].fresh phải là số hữu hạn trong [0, 100]")
+
+
 def _validate_quan(b, tuning):
     """Kiểm từng trường của khối quan. Mâu thuẫn giữa các thực thể kiểm tiếp trong QuanSim._check_fixture."""
     q, menu = tuning["quan"], tuning["menu"]
@@ -202,7 +224,7 @@ def _validate_quan(b, tuning):
         if arr in b:
             _check_ids(arr, b[arr])
     if "stock" in b:
-        validate_items(b["stock"], ingredient_kinds(tuning))
+        _quan_stock_items(b["stock"], ingredient_kinds(tuning))
     p = b.get("player", {})
     if not isinstance(p, dict) or set(p) - QUAN_PLAYER_KEYS:
         raise BadInput("quan.player chỉ có pos và vel")
@@ -265,7 +287,9 @@ def _validate_quan(b, tuning):
         if c.get("eat_ticks_left", 0) > eat_full:
             raise BadInput(f"customers.{cid}.eat_ticks_left vượt thời gian ăn {eat_full}")
         if "reserved" in c:
-            validate_items(c["reserved"], ingredient_kinds(tuning))
+            r = c["reserved"]
+            if not isinstance(r, list) or not all(isinstance(i, str) and i for i in r):
+                raise BadInput(f"customers.{cid}.reserved phải là mảng id cá thể (v1.2)")
         if c.get("base_price") is not None and not _pos_int(c["base_price"]):
             raise BadInput(f"customers.{cid}.base_price phải là số nguyên dương hoặc null")
         if c.get("tip") is not None:
