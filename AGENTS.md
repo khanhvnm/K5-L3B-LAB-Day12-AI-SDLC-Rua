@@ -21,6 +21,9 @@
 - Không sửa test cho xanh khi luật sai; phải sửa luật hoặc ghi lý do đổi test trong commit.
 
 ## Quy tắc làm việc với agent
+- Trước khi tạo thư mục, nói rõ tên/vị trí và mục đích cho người dùng. Thư mục tạm do tác vụ tạo chỉ để kiểm thử/chạy thử phải tự dọn sau khi xong, kể cả khi lỗi; không xóa thư mục có sẵn hoặc file test/bằng chứng cần bàn giao.
+- Thành phụ trách client/ui trên nhánh `p1/ui`; lỗi luật gather/quán chuyển chủ module theo TEAM.md. Không stage/commit/push khi người dùng muốn tự commit.
+- Test UI: `node --test tests/test_ui.js` (Node có sẵn, không cần npm install). Lệnh unittest chung cũng chạy test này khi có Node; thiếu Node phải báo skip.
 - Mỗi agent một việc rõ ràng (một lát). Cho agent đọc PRD/ticket đúng phase và hợp đồng kho trước.
 - Agent làm xong phải chạy test và ghi kết quả vào mô tả commit hoặc `docs/proof/`; người đọc lại thay đổi trước khi đẩy.
 - Sáng tạo thêm được khuyến khích nhưng phải tắt ở headless (xem README, mục "Tự do sáng tạo").
