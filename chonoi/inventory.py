@@ -10,9 +10,8 @@ import tempfile
 
 from .errors import BadInput
 
-KINDS_P1 = ("ca_loc", "ca_linh", "bong_dien_dien", "bong_sung")
-# Contract v1.1 (Ticket-02 mục 1.3): thêm cá kèo và kèo nèo -> 6 nguyên liệu.
-KINDS = KINDS_P1 + ("ca_keo", "keo_neo")
+KINDS_P1 = ("ca_loc", "ca_linh", "ca_keo", "bong_dien_dien", "bong_sung", "keo_neo")  # v1.1: thêm ca_keo, keo_neo
+KINDS = KINDS_P1  # tên dùng trong sim/quan, scenario, contract
 
 
 def validate_items(items, kinds=KINDS):
