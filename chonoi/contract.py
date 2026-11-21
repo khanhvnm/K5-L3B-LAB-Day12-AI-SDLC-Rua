@@ -202,6 +202,7 @@ def validate_tuning(t):
                 raise BadInput(f"menu.{dish_id}.recipe: nguyên liệu lạ {kind!r}")
             _int_between(f"menu.{dish_id}.recipe.{kind}", qty, 1, 99)
     _validate_day(t, menu)
+    _validate_freshness(t.get("freshness"))
 
 
 def _validate_day(t, menu):
@@ -224,3 +225,13 @@ def _validate_day(t, menu):
                 raise BadInput(f"tuning.shop.upgrades.{kind}: cấp phải đánh số 1, 2, … theo thứ tự")
             _int_between(f"shop.upgrades.{kind}[{i}].price", lv.get("price"), 1, 10**9)
             _between(f"shop.upgrades.{kind}[{i}].{vk}", lv.get(vk), 1, 10_000)
+
+
+def _validate_freshness(f):
+    """Độ tươi v1.2: initial ∈ (0, 100], tốc độ hao ≥ 0, ngưỡng ươn ∈ [0, initial]."""
+    if not isinstance(f, dict) or set(f) != {"initial", "gather_decay_per_s", "quan_decay_per_s", "spoiled_below"}:
+        raise BadInput("tuning.freshness phải có đúng initial, gather_decay_per_s, quan_decay_per_s, spoiled_below")
+    _between("freshness.initial", f["initial"], 0.001, 100)
+    _between("freshness.gather_decay_per_s", f["gather_decay_per_s"], 0, 100)
+    _between("freshness.quan_decay_per_s", f["quan_decay_per_s"], 0, 100)
+    _between("freshness.spoiled_below", f["spoiled_below"], 0, f["initial"])

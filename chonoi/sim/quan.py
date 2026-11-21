@@ -137,15 +137,10 @@ class QuanSim:
 
     def _items_from(self, src) -> list:
         """Kho cá thể nội bộ {id, kind, units}, sắp theo id; id được giữ chỗ trong IdAllocator (họ I tăng tiếp)."""
-        if isinstance(src, dict):
-            # TẠM, chờ lát S/G: đầu đọc/gather cũ còn trả kho ĐẾM -> cấp cá thể mới, fresh ban đầu.
-            out = [{"id": self.ids.new("I"), "kind": k, "units": self.initial_units}
-                   for k in sorted(src) for _ in range(src[k])]
-        else:
-            out = [{"id": it["id"], "kind": it["kind"],
-                    "units": it["units"] if "units" in it else _units(it["fresh"])} for it in src]
-            for it in out:
-                self.ids.reserve(it["id"])
+        out = [{"id": it["id"], "kind": it["kind"],
+                "units": it["units"] if "units" in it else _units(it["fresh"])} for it in src]
+        for it in out:
+            self.ids.reserve(it["id"])
         return sort_by_id(out)
 
     def _recipe(self, dish_id) -> dict:

@@ -128,7 +128,9 @@ class DaySession:
         if old_phase == "gather":
             # Cùng bàn giao kho đã chốt ở gather_end; không bước Quán trong tick này.
             inventory = self.sim.inventory_items()
-            self.delivered = copy.deepcopy(inventory)
+            # EveningIntro: đúng phần bàn giao trong event gather_end (cùng schema kho v1.2)
+            end = next(d for n, d in events if n == "gather_end")
+            self.delivered = copy.deepcopy(end["inventory"]["items"])
             planned = self.plan["dishes"]
             fixture_tuning = dict(self.tuning, menu={key: self.tuning["menu"][key] for key in planned})
             fixture = copy.deepcopy(self.scenario.get("quan", {}))

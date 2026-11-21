@@ -65,3 +65,21 @@ class Workdir:
 
     def path(self, name):
         return os.path.join(self._d.name, name)
+
+
+def make_items(kinds, start=1, fresh=100):
+    """Contract v1.2: danh sách loại -> mảng cá thể {id: I<start>.., kind, fresh}."""
+    return [{"id": f"I{start + i}", "kind": k, "fresh": fresh} for i, k in enumerate(kinds)]
+
+
+def kinds_of(items):
+    """Mảng cá thể -> danh sách loại theo đúng thứ tự (so giỏ/lost theo thứ tự vào giỏ/LIFO)."""
+    return [it["kind"] for it in items]
+
+
+def count_kinds(items):
+    """Mảng cá thể -> map loại -> số lượng (sắp theo loại)."""
+    c = {}
+    for it in items:
+        c[it["kind"]] = c.get(it["kind"], 0) + 1
+    return {k: c[k] for k in sorted(c)}
