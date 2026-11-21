@@ -13,14 +13,16 @@ python3 -m chonoi.bench --seed 42 --duration 30 --out docs/proof/phase-4/bench.j
 - Headless chạy **không khóa vsync** (`--disable-gpu-vsync --disable-frame-rate-limit`) nên `avg_fps` đo khả năng render tối đa, không phải 60 Hz của màn hình; bản chơi thường trên trình duyệt có vsync bị giới hạn theo tần số màn hình.
 - Python tính theo ticket: `avg_fps = frames / measured_s`; `p1_low_fps` = nghịch đảo thời gian trung bình (giây) của `max(1, ceil(0.01 × frames))` khung chậm nhất; `load_ms` = từ lúc khởi chạy lệnh tới khung đầu tiên của cảnh đo.
 
-## Kết quả (Windows 11, AMD 16 luồng, Chrome 157.0.8103.80)
+## Kết quả trên commit bàn giao `main@f186618` (Windows 11, AMD 16 luồng, Chrome 157.0.8103.80)
 
 | Lần | avg_fps | p1_low_fps | frames | measured_s | load_ms |
 |---|---|---|---|---|---|
-| [bench.json](bench.json) | 1633.19 | 47.29 | 48 996 | 30.0 | 674 |
-| [bench-run2.json](bench-run2.json) | 1798.59 | 52.61 | 53 958 | 30.0 | 636 |
+| [bench.json](bench.json) | 1728.54 | 50.65 | 51 857 | 30.0 | 632 |
+| [bench-run2.json](bench-run2.json) | 1727.06 | 51.47 | 51 828 | 30.009 | 687 |
 
-So với mốc báo cáo: avg ≥ 60 FPS **đạt**, 1% low ≥ 30 FPS **đạt**, load ≤ 10 s **đạt** (≈ 0,65 s).
+Lần chạy đầu trên `p4/bench@504d3b7` (trước cảnh báo/tương phản của Thành): 1633 / 47 FPS, load 674 ms — cùng bậc.
+
+So với mốc báo cáo: avg ≥ 60 FPS **đạt**, 1% low ≥ 30 FPS **đạt**, load ≤ 10 s **đạt** (≈ 0,66 s).
 
 1% low thấp hơn nhiều so với trung bình vì khi không khóa khung, các khung bị chen bởi poll `/state` (50 ms) hoặc GC nổi rõ; vẫn trên ngưỡng 30.
 

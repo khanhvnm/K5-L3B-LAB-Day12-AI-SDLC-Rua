@@ -4,6 +4,9 @@
 ## phase-4 / v1.0.0 — Test Contract v1.3
 - Manifest `contract_version: "1.3"`, thêm `bench_cmd` (`python3 -m chonoi.bench`) và `soak_cmd` (`python3 -m chonoi.soak`); `run_cmd` mở vòng ngày 5 Ngày. Gameplay, tuning, kho, JSONL giữ v1.2.
 - Benchmark có render: `chonoi/bench.py` + chế độ `?bench=` trong `chonoi/web/index.html`, Chrome/Chromium/Edge headless 1280×720, làm nóng 3 s, ghi `bench.json` 5 trường.
+- Soak headless: `chonoi/soak.py`, bot tất định 10 Ngày (kế hoạch D1–D5 lặp ở Ngày 6–10), `soak.json` với `days`, `days_completed`, `crashes`, `results[]`, `duration_s` (Trà).
+- Cảnh báo dễ nhận biết (thủy quái gần, oxy sắp hết, khách sắp giận) có chữ và biểu tượng; chế độ tương phản cao (phím H, `?contrast=high`) (Thành).
+- Đóng gói: README "Chạy nhanh" ≤ 3 lệnh, `LICENSE` (MIT), rà `CREDITS.md`; ZIP Release tạo bằng `git archive` từ tag `phase-4` (Thành, Khánh).
 - Test đổi vì phiên bản (luật không đổi): `test_fresh_v12::test_version_and_freshness_block`, `test_gather_v11::test_version_and_standard_numbers` nhận thêm `"1.3"`.
 
 ## phase-3 — Test Contract v1.2 (BREAKING)
