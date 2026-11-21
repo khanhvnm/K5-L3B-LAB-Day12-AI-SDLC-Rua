@@ -10,3 +10,7 @@
 Phase 1 — Khánh / Codex (GPT-6): bổ sung test headless cho luật Gather; Khánh chạy 10 test tập trung và toàn bộ 61 test, cả hai lượt đều pass. Khánh đã xem lại đầu ra; proof: `docs/proof/phase-1/gather-rules-tests.md`.
 
 Phase 2 — Thành / Codex: đối chiếu TICKET-02 từ session trước, nối điều phối day/Pause với CLI và UI, kiểm JSONL, regression và Chrome headless. Shop và kế hoạch fixture chỉ kiểm giao diện tích hợp; xem [bằng chứng lát D/E](proof/phase-2/day-ui.md).
+
+Phase 2 — Khánh / Claude Code (Claude Sonnet 5.5, Opus 5.5): chia lát và AC-P2 (`docs/plan/phase-2.md`); `game.contract.json` 1.1 và bộ kiểm; cá bơi/sinh trong gather; luật Shop; review `p2/quan` và `p2/day-ui`; smoke tích hợp và smoke day (`docs/proof/phase-2/integration.md`, `day-smoke.md`). AI sai: test sinh cá ban đầu thất bại vì fixture 12 đàn đã chạm trần `fish_max`; phát hiện khi chạy test, sửa fixture chứ không sửa luật. AI tự thêm dòng `Co-Authored-By` vào commit; Khánh yêu cầu bỏ và 3 commit chưa push được viết lại. Token: chưa đo.
+
+Phase 2 — Trà: lát Cá Sấu, quán v1.1 và kế hoạch ngày (PR #5). Trà tự bổ sung công cụ/model và lỗi AI đã phát hiện.
