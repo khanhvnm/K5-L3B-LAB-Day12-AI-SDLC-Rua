@@ -11,3 +11,8 @@
 | Q4 | 2026-11-21 P1 | Khách ăn xong đúng tick hết ca: `paid.reason` là gì? | Giả định: `finished_eating` (luật "ăn xong trả tiền" xét trước); khách còn đang ăn khác trả với `closing`. | Trà (giả định) |
 | Q5 | 2026-11-21 P1 | "Chọn đều theo seed" làm thế nào? | Luồng RNG `customers` (`Streams`), `randrange` trên danh sách món đủ nguyên liệu khả dụng, sắp theo id món (mã Unicode). | Trà |
 | Q6 | 2026-11-21 P1 | Sai số float của uy tín (3.0 + 0.2 + …) làm lệch `floor` trong điểm? | Làm tròn uy tín 6 chữ số sau mỗi lần đổi, sau khi kẹp `[reputation_min, reputation_max]`. | Trà |
+| P2-01 | 2026-11-21 | `recoil_dist` của Cá Sấu: tổng quãng hay tốc độ? | Giả định: tổng quãng lùi (m); mỗi bước lùi `recoil_dist / recoil_ticks` = 2/60 m, khớp ticket. Ghi trong `docs/contracts/README.md` 4.1. | Khánh (giả định) |
+| P2-02 | 2026-11-21 | "8 điểm khác nhau" lúc đầu ca: khác cặp loài–điểm hay khác vị trí hình học? | Giả định: khác vị trí hình học (cách nhau > `fish_spawn_clearance`), dùng cùng thủ tục với sinh theo lịch; cặp linh/lóc cùng `[x,10]` không cùng xuất hiện. | Khánh (giả định) |
+| P2-03 | 2026-11-21 | Hướng mới khi đổi hướng ở bước 120·k lấy phân bố nào? | Giả định: đều trên [0°, 360°) từ luồng RNG `fish_swim`, mỗi đàn một lần rút theo thứ tự id. Test không ghi cứng giá trị. | Khánh (giả định) |
+| P2-04 | 2026-11-21 | Shop: lệnh `buy` ngoài oxygen/hp (mở rộng chưa bật) xử lý thế nào? | `buy_failed` với `reason: "unknown"`, tiền và cấp giữ nguyên, theo §4.2 ticket. | Khánh |
+

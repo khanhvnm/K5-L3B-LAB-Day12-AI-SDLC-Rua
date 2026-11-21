@@ -1,10 +1,10 @@
-# Hợp đồng tích hợp Phase 1 — v1.0
+# Hợp đồng tích hợp — v1.1 (Phase 2; v1.0 của Phase 1 vẫn là nền)
 
 Hợp đồng này nối mô phỏng `gather`, mô phỏng `quan` và `client/ui`. Số liệu gameplay lấy từ `game.contract.json`; thay đổi schema hoặc giao diện phải được nhóm thống nhất trước và ghi lý do tại đây hoặc trong ADR.
 
 ## 1. Bàn giao file kho: gather → quan
 
-File UTF-8 là một object JSON duy nhất, chỉ có khóa gốc `items`. `items` ánh xạ ID nguyên liệu sang số nguyên không âm. ID hợp lệ: `ca_loc`, `ca_linh`, `bong_dien_dien`, `bong_sung`. Nguyên liệu không có trong object được hiểu là 0; khi ghi, bỏ khóa có lượng 0. Kho không áp giới hạn sức chứa của giỏ.
+File UTF-8 là một object JSON duy nhất, chỉ có khóa gốc `items`. `items` ánh xạ ID nguyên liệu sang số nguyên không âm. ID hợp lệ: `ca_loc`, `ca_linh`, `ca_keo`, `bong_dien_dien`, `bong_sung`, `keo_neo` (v1.1 thêm `ca_keo`, `keo_neo`). Nguyên liệu không có trong object được hiểu là 0; khi ghi, bỏ khóa có lượng 0. Kho không áp giới hạn sức chứa của giỏ.
 
 ```json
 {"items":{"bong_sung":2,"ca_loc":1}}
@@ -72,3 +72,38 @@ Mô phỏng phát event; runner/headless ghi vào JSONL theo thứ tự xử lý
 | `quan` | `quan_end` | `reason`, `money`, `earned`, `shift_earned`, `reputation` | sim → runner/JSONL, UI |
 
 Tên event, tick phát và cấu trúc dữ liệu tuân theo mục E–G của PRD-0. Mảng thực thể sắp theo ID; cùng seed và đầu vào phải cho output giống từng byte.
+
+## 4. Thay đổi v1.1 (Phase 2, TICKET-02)
+
+Chủ hợp đồng: Khánh. Số liệu nằm ở `game.contract.json` (`contract_version: "1.1"`), `chonoi/contract.py` kiểm dải hợp lệ.
+
+### 4.1 Khóa tuning thêm/đổi
+
+| Phạm vi | Khóa | Giá trị chuẩn |
+|---|---|---|
+| `gather` | `fish_initial` (đổi từ mảng sang **số**) | `8` |
+| `gather` | `fish_speed`, `fish_turn_ticks`, `fish_max`, `fish_spawn_ticks`, `fish_spawn_clearance` | `1.5`, `120`, `12`, `360`, `1.0` |
+| `gather` | `fish_x` (miền x), `fish_spawn_x` (danh sách x) | `[4,96]`, `[15,30,45,60,75,90]` |
+| `gather` | `fish_depths`, `fish_spawn_depths`, `fish_weights` (map theo loài) | linh `[3,12]`/`[5,10]`/40, lóc `[8,20]`/`[10,16]`/30, kèo `[22,28]`/`[24,27]`/30 |
+| `gather` | `fish_yield` đủ 3 loài; `nodes` thêm N5, N6 (`keo_neo`) | linh 3, lóc 1, kèo 2; N5 `[76,0]`, N6 `[90,0]` |
+| `gather.monsters` | `species.ca_sau`, `spawns[]` (M1 từ Ngày 1, M2 từ Ngày 3), `invuln_ticks: 90`, `loss_ratio: 0.5` | xem file. `recoil_dist` = quãng lùi tổng (m); mỗi bước lùi `recoil_dist / recoil_ticks` = 2/60 m |
+| `quan`, `menu` | thêm B2, T2–T4; món `canh_chua_ca_loc`, `ca_keo_nuong`, `lau_mam` | dữ liệu, không hard-code |
+| `day_plan` | 5 object `{day, dishes, ingredients}`; `ingredients` = Σ công thức × số suất (validator tính lại và so khớp) | D1–D5 theo ticket |
+| `shop` | `{max_ticks: 600, upgrades: {oxygen[], hp[]}}`, mỗi cấp `{level, price, oxygen_max_s|hp_max}` | oxygen 200→45 s, 400→60 s; hp 250→4, 500→5 |
+
+### 4.2 Gather: snapshot, sự kiện, thứ tự
+
+- Snapshot thêm `monsters[]` (rỗng tới khi lát Cá Sấu ghép) và `fish[].age_ticks` (số bước đã bơi; cá mới sinh = 0).
+- Event `fish_spawned {id, kind, pos}` khi sinh theo lịch (`phase_tick = 360·k`, sau khi cá bơi, còn dưới trần và có điểm cách mọi đàn đang sống > 1 m; hết điểm thì bỏ lượt).
+- Mỗi tick (theo §4.5 ticket): đồng hồ/cooldown/nút mọc lại → bơi, oxy, ngạt → quái (`_update_monsters`) → tương tác (bến trước hái) → bắt cá (theo vị trí cá trước khi bơi) → hết giờ → nếu còn giờ: cá bơi → sinh cá.
+- Cá bơi theo id: tăng `age_ticks`; bước thứ `120·k` đổi hướng theo luồng RNG `fish_swim` trước khi đi; chạm mép thì phản xạ phần quãng đường còn lại, đảo thành phần vuông góc với mép (chạm góc đảo cả hai).
+- Sinh cá dùng luồng RNG `fish_spawn`: loài theo trọng số chuẩn hóa trên các loài còn điểm hợp lệ → chọn đều điểm của loài → hướng theo seed. Đàn đầu ca dùng cùng thủ tục (8 đàn, 8 điểm khác nhau).
+- `random_fish: false`: cá fixture đứng yên, không sinh. Khai `fish` khi cờ bật: thay đàn đầu ca, vẫn bơi/sinh.
+
+### 4.3 Shop (`chonoi/sim/shop.py`)
+
+`ShopSim.step(buy, shop_done)` mỗi tick Shop chạy (bộ điều phối không gọi khi pause). Một `buy` được xử lý trước cạnh `shop_done`, kể cả bước cuối; `shop_done` thắng hết giờ. Event: `bought {upgrade, level, price, money}`, `buy_failed {action, reason: funds|max_level|unknown}`, `shop_end {reason: done|time}`. Mở rộng chưa bật (`weapon`, `net`, `buy:`, `sell:`) → `buy_failed unknown`. `active_stats(tuning, active_upgrades)` trả oxy/Máu theo cấp đang áp dụng; bộ điều phối chỉ sao `upgrades` → `active_upgrades` khi dựng Ngày mới.
+
+### 4.4 Phần còn thuộc lát khác
+
+Cá Sấu (`_update_monsters`), chế độ `day`/pause/khối scenario `day`, input `buy`/`shop_done`/`pause`, HUD: xem `docs/plan/phase-2.md`.
