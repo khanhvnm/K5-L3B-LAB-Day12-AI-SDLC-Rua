@@ -3,7 +3,8 @@
 import json
 import unittest
 
-from helpers import Workdir, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import (Workdir, count_kinds, events, frames, kinds_of, make_items, read_jsonl, run_headless,
+                     snapshots, write_json)
 
 
 def gather_tuning():
@@ -77,7 +78,7 @@ class GatherRules(unittest.TestCase):
                 self.quiet_scene(
                     player={"pos": [20, 5], "oxygen_ticks": 0,
                             "zero_oxy_ticks": 59, "hp": 1},
-                    hold=list(reversed(lost_in_lifo_order)),
+                    hold=make_items(list(reversed(lost_in_lifo_order))),
                 ),
                 inventory_out=True,
             )
@@ -87,15 +88,15 @@ class GatherRules(unittest.TestCase):
             self.assertEqual(choke[0]["data"]["hp"], 0)
             faint = events(rows, "faint")
             self.assertEqual(len(faint), 1)
-            self.assertEqual(faint[0]["data"], {
-                "cause": "choke", "lost": lost_in_lifo_order, "hp": 0,
-            })
+            data = faint[0]["data"]  # v1.2: kho cá thể
+            self.assertEqual((data["cause"], kinds_of(data["lost"]), data["hp"]), ("choke", lost_in_lifo_order, 0))
+            self.assertEqual([it["id"] for it in data["lost"]], ["I3", "I2", "I1"])
             end = events(rows, "gather_end")
             self.assertEqual(len(end), 1)
             self.assertEqual(end[0]["data"]["reason"], "fainted")
-            self.assertEqual(end[0]["data"]["inventory"], {"items": {}})
+            self.assertEqual(end[0]["data"]["inventory"], {"items": []})
             with open(inventory_path, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {}})
+                self.assertEqual(json.load(f), {"items": []})
 
     def test_harvest_selects_nearest_then_lowest_id_on_tie(self):
         with Workdir() as w:
@@ -116,7 +117,7 @@ class GatherRules(unittest.TestCase):
                 "node_id": "N2", "kind": "bong_sung", "amount": gather_tuning()["node_yield"],
             })
             s = snapshots(rows)[-1]
-            self.assertEqual(s["hold"], ["bong_sung"] * gather_tuning()["node_yield"])
+            self.assertEqual(kinds_of(s["hold"]), ["bong_sung"] * gather_tuning()["node_yield"])
             ready = {n["id"]: n["ready"] for n in s["nodes"]}
             self.assertFalse(ready["N2"])
             self.assertTrue(ready["N1"])
@@ -133,7 +134,7 @@ class GatherRules(unittest.TestCase):
 
             self.assertEqual([e["name"] for e in events(rows)], ["node_regrown", "gather"])
             s = snapshots(rows)[-1]
-            self.assertEqual(s["hold"], ["bong_sung"] * gather_tuning()["node_yield"])
+            self.assertEqual(kinds_of(s["hold"]), ["bong_sung"] * gather_tuning()["node_yield"])
             n = s["nodes"][0]
             self.assertFalse(n["ready"])
             self.assertEqual(n["regrow_ticks"], round(gather_tuning()["regrow_s"] * 60))
@@ -146,7 +147,7 @@ class GatherRules(unittest.TestCase):
                 w,
                 self.quiet_scene(
                     player={"pos": [20, 0]},
-                    hold=["ca_loc"] * capacity,
+                    hold=make_items(["ca_loc"] * capacity),
                     nodes=[node],
                 ),
                 input_frames=({"tick": 0, "interact": True},),
@@ -158,7 +159,7 @@ class GatherRules(unittest.TestCase):
                 "action": "gather", "node_id": "N1", "required": gather_tuning()["node_yield"], "free": 0,
             })
             s = snapshots(rows)[-1]
-            self.assertEqual(s["hold"], ["ca_loc"] * capacity)
+            self.assertEqual(kinds_of(s["hold"]), ["ca_loc"] * capacity)
             self.assertTrue(s["nodes"][0]["ready"])
 
     def test_fish_catch_uses_nearest_and_respects_cooldown(self):
@@ -192,7 +193,7 @@ class GatherRules(unittest.TestCase):
             s = snapshots(rows)[-1]
             expected_hold = (["ca_linh"] * gather_tuning()["fish_yield"]["ca_linh"]
                              + ["ca_loc"] * gather_tuning()["fish_yield"]["ca_loc"])
-            self.assertEqual(s["hold"], expected_hold)
+            self.assertEqual(kinds_of(s["hold"]), expected_hold)
             self.assertEqual(s["fish"], [])
 
     def test_catch_with_full_hold_keeps_fish_and_cooldown(self):
@@ -206,7 +207,7 @@ class GatherRules(unittest.TestCase):
                 w,
                 self.quiet_scene(
                     player={"pos": [20, 5]},
-                    hold=["ca_loc"] * (capacity - free),
+                    hold=make_items(["ca_loc"] * (capacity - free)),
                     fish=fish,
                 ),
                 input_frames=({"tick": 0, "catch": True},),
@@ -218,7 +219,7 @@ class GatherRules(unittest.TestCase):
                 "action": "catch", "fish_id": "F1", "required": required, "free": free,
             })
             s = snapshots(rows)[-1]
-            self.assertEqual(s["hold"], ["ca_loc"] * (capacity - free))
+            self.assertEqual(kinds_of(s["hold"]), ["ca_loc"] * (capacity - free))
             self.assertEqual([f["id"] for f in s["fish"]], ["F1"])
             self.assertEqual(s["player"]["catch_cd_ticks"], 0)
 
@@ -252,9 +253,7 @@ class GatherRules(unittest.TestCase):
             self.assertEqual([e["name"] for e in events(rows)], ["gather", "gather_end"])
             end = events(rows, "gather_end")[-1]["data"]
             self.assertEqual(end["reason"], "time")
-            self.assertEqual(end["inventory"], {
-                "items": {"bong_sung": gather_tuning()["node_yield"]},
-            })
+            self.assertEqual(count_kinds(end["inventory"]["items"]), {"bong_sung": gather_tuning()["node_yield"]})
 
 
 if __name__ == "__main__":

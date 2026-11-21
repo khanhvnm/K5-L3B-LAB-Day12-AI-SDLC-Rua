@@ -13,6 +13,12 @@
 - Commits: `5742593` (một commit gộp), merge `f3c8bbc`. Cần thêm commit có nội dung bằng tài khoản của mình để đủ ≥ 3.
 - Bằng chứng: [day-ui.md](../proof/phase-2/day-ui.md). Thành tự bổ sung phần tự phản tư Phase 2.
 
+## Phase 3
+
+- Vai: chủ lát Day/HUD v1.2.
+- Việc: bàn giao cá thể và id mẫu `hold` xuyên Ngày trong `chonoi/day.py`, Shop `stock` cá thể không hao, kho khả dụng trong `chonoi/live.py`, bảng độ tươi trong HUD; test `test_day`, `test_shop_rules`, `test_live`, `test_ui.js`.
+- Commits: `000593e`; merge PR #9. Bằng chứng: [day-ui.md](../proof/phase-3/day-ui.md).
+
 ## Tự phản tư
 
 Thành cần tự ghi phần đã review, điều học được và một lỗi AI đã phát hiện trước khi nộp retro cá nhân.

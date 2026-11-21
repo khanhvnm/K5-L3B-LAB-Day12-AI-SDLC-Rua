@@ -9,7 +9,7 @@ import json
 import math
 
 from .errors import BadInput
-from .inventory import validate_items
+from .inventory import validate_individuals, validate_items
 from .sim.monsters import validate_monsters
 
 GATHER_KEYS = {"player", "hold", "nodes", "fish", "monsters", "random_fish", "time_left_ticks"}
@@ -123,10 +123,7 @@ def _validate_gather(b, tuning):
     if "random_fish" in b and not isinstance(b["random_fish"], bool):
         raise BadInput("random_fish phải là boolean")
     if "hold" in b:
-        h = b["hold"]
-        kinds = ingredient_kinds(tuning)
-        if not isinstance(h, list) or any(not isinstance(k, str) or k not in kinds for k in h):
-            raise BadInput("hold phải là mảng id nguyên liệu hợp lệ")
+        h = validate_individuals(b["hold"], ingredient_kinds(tuning), "gather.hold")  # v1.2: mảng cá thể
         if len(h) > g["hold_capacity"]:
             raise BadInput("hold vượt sức chứa")
     p = b.get("player", {})

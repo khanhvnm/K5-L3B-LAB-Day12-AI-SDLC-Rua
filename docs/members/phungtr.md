@@ -13,6 +13,12 @@
 - Commits: `c739633`, `78942f6`, `1debbf0`, `eb660a7`, `c3a5382`; merge PR #5.
 - Trà tự bổ sung phần tự phản tư Phase 2.
 
+## Phase 3
+
+- Vai: chủ lát Quán v1.2.
+- Việc: kho cá thể trong `chonoi/sim/quan.py` (đơn vị 240/điểm), hao tươi, `spoiled`, giữ chỗ theo id, nhả/giữ lại khi hàng vừa ươn, giá theo tươi; kiểm `quan.stock`/`reserved` trong `chonoi/scenario.py`; `tests/test_fresh_quan.py` và chuyển `test_quan_rules` sang cá thể.
+- Commits: `73722a7`, `8c23154`; merge PR #8.
+
 ## Tự phản tư
 
 Trà cần tự ghi phần đã review, điều học được và một lỗi AI đã phát hiện trước khi nộp retro cá nhân.

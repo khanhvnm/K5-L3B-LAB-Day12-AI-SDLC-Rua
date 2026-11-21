@@ -8,7 +8,7 @@ import json
 import math
 import unittest
 
-from helpers import Workdir, close, events, frames, read_jsonl, run_headless, snapshots, write_json
+from helpers import Workdir, close, events, frames, kinds_of, make_items, read_jsonl, run_headless, snapshots, write_json
 
 
 def tuning():
@@ -105,7 +105,7 @@ class Movement(unittest.TestCase):
 
 class Hit(unittest.TestCase):
     START, PLAYER = [50, 20], [45, 20]
-    HOLD = ["ca_loc", "bong_sung", "ca_linh"]
+    HOLD = make_items(["ca_loc", "bong_sung", "ca_linh"])  # v1.2: kho cá thể
 
     def expected_hit_tick(self):
         gap = math.dist(self.START, self.PLAYER) - SP["hit_radius"]
@@ -120,11 +120,11 @@ class Hit(unittest.TestCase):
         lost_n = math.floor(len(self.HOLD) * MON["loss_ratio"])
         self.assertEqual(data["monster_id"], "M1")
         self.assertEqual(data["hp"], G["hp_max"] - 1)
-        self.assertEqual(data["lost"], list(reversed(self.HOLD))[:lost_n])
+        self.assertEqual(kinds_of(data["lost"]), kinds_of(list(reversed(self.HOLD))[:lost_n]))
         self.assertEqual(data["pos"], self.PLAYER)
         s = snap_by_tick(rows)[tick]
         self.assertEqual(s["player"]["invuln_ticks"], INVULN)
-        self.assertEqual(s["hold"], self.HOLD[:len(self.HOLD) - lost_n])
+        self.assertEqual(kinds_of(s["hold"]), kinds_of(self.HOLD[:len(self.HOLD) - lost_n]))
         m = s["monsters"][0]
         self.assertEqual((m["state"], m["state_ticks_left"]), ("recoil", RECOIL))
         self.assertTrue(close(m["recoil_dir"][0], 1, 0.01) and close(m["recoil_dir"][1], 0, 0.01), m)
@@ -152,19 +152,20 @@ class Hit(unittest.TestCase):
         self.assertEqual([t for t, _ in hits(rows)][:1], [50])
 
     def test_het_mau_vi_ca_sau_thi_ngat_kho_rong(self):
-        hold = ["ca_loc", "bong_sung", "ca_linh", "ca_keo"]
+        hold = make_items(["ca_loc", "bong_sung", "ca_linh", "ca_keo"])  # v1.2: kho cá thể
         with Workdir() as w:
             inv = w.path("inv.json")
             rows = run_gather(w, {"player": {"pos": self.PLAYER, "hp": 1}, "hold": hold,
                                   "monsters": [croc(self.PLAYER)]}, 10, extra=("--inventory-out", inv))
             with open(inv, encoding="utf-8") as f:
-                self.assertEqual(json.load(f), {"items": {}})
+                self.assertEqual(json.load(f), {"items": []})
         names = [(r["tick"], r["name"]) for r in events(rows)]
         self.assertEqual(names, [(1, "monster_hit"), (1, "faint"), (1, "gather_end")])
         ev = {r["name"]: r["data"] for r in events(rows)}
-        self.assertEqual(ev["monster_hit"]["lost"], ["ca_keo", "ca_linh"])
-        self.assertEqual(ev["faint"], {"cause": "monster", "lost": ["bong_sung", "ca_loc"], "hp": 0})
-        self.assertEqual(ev["gather_end"], {"reason": "fainted", "inventory": {"items": {}}})
+        self.assertEqual(kinds_of(ev["monster_hit"]["lost"]), ["ca_keo", "ca_linh"])
+        self.assertEqual((ev["faint"]["cause"], kinds_of(ev["faint"]["lost"]), ev["faint"]["hp"]),
+                         ("monster", ["bong_sung", "ca_loc"], 0))
+        self.assertEqual(ev["gather_end"], {"reason": "fainted", "inventory": {"items": []}})
         self.assertEqual(rows[-1]["reason"], "fainted")
         self.assertEqual(snapshots(rows)[-1]["monsters"][0]["recoil_dir"], [1.0, 0.0], "trùng tâm dùng +x")
 

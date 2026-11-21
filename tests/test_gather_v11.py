@@ -35,7 +35,7 @@ def one_fish(kind="ca_loc", pos=(50, 14), heading=0, **extra):
 
 class Contract(unittest.TestCase):
     def test_version_and_standard_numbers(self):
-        self.assertEqual(load_contract()["contract_version"], "1.1")
+        self.assertIn(load_contract()["contract_version"], ("1.1", "1.2"))  # v1.2 giữ số chuẩn v1.1
         self.assertEqual((G["duration_s"], G["oxygen_max_s"], G["hold_capacity"]), (180, 30, 12))
         self.assertEqual(G["fish_yield"], {"ca_linh": 3, "ca_loc": 1, "ca_keo": 2})
         self.assertEqual([(n["id"], n["kind"]) for n in G["nodes"]][4:], [("N5", "keo_neo"), ("N6", "keo_neo")])
@@ -174,9 +174,9 @@ class Species(unittest.TestCase):
         scene = {"fish": [one_fish("ca_keo", (30, 24))], "random_fish": False, "player": {"pos": [30, 24]}}
         s = sim(scene)
         ev = s.step(press("catch"))
-        self.assertEqual(s.hold, ["ca_keo", "ca_keo"])
+        self.assertEqual([it["kind"] for it in s.hold], ["ca_keo", "ca_keo"])
         self.assertEqual([n for n, _ in ev], ["fish_caught"])
-        full = sim(dict(scene, hold=["ca_loc"] * 11))
+        full = sim(dict(scene, hold=[{"id": f"I{i}", "kind": "ca_loc", "fresh": 100} for i in range(1, 12)]))
         ev = full.step(press("catch"))
         self.assertEqual(len(full.fish), 1)
         self.assertEqual(ev[0][0], "hold_full")
@@ -185,7 +185,7 @@ class Species(unittest.TestCase):
     def test_keo_neo_node_gathers_at_surface(self):
         s = sim({"player": {"pos": [76, 0]}})
         ev = s.step(press("interact"))
-        self.assertEqual(s.hold, ["keo_neo"])
+        self.assertEqual([it["kind"] for it in s.hold], ["keo_neo"])
         self.assertEqual(ev[0][1]["node_id"], "N5")
 
 

@@ -107,3 +107,37 @@ Chủ hợp đồng: Khánh. Số liệu nằm ở `game.contract.json` (`contra
 ### 4.4 Phần còn thuộc lát khác
 
 Cá Sấu (`_update_monsters`), chế độ `day`/pause/khối scenario `day`, input `buy`/`shop_done`/`pause`, HUD: xem `docs/plan/phase-2.md`.
+
+## 5. Thay đổi v1.2 (Phase 3, TICKET-03) — BREAKING
+
+Chủ hợp đồng: Khánh. `game.contract.json`: `contract_version: "1.2"`, thêm `tuning.freshness {initial: 100, gather_decay_per_s: 0.5, quan_decay_per_s: 0.25, spoiled_below: 30}`.
+
+### 5.1 Kho cá thể (thay mục 1)
+
+```json
+{"items":[{"id":"I1","kind":"ca_linh","fresh":100},{"id":"I2","kind":"ca_loc","fresh":97.5}]}
+```
+
+- Đúng khóa gốc `items`, giá trị là **mảng** cá thể có đúng ba khóa `{id, kind, fresh}`; kho rỗng `{"items":[]}`. `id` chuỗi khác rỗng, duy nhất; `kind` thuộc danh mục nguyên liệu; `fresh` số hữu hạn trong `[0, 100]`.
+- Contract v1.2 **từ chối file kho đếm** (`{"items":{...}}`) và mọi sai schema → mã 2, trước khi tạo output. Không hỗ trợ song song v1.1.
+- Ghi: đúng một lần khi `gather_end`, file tạm cùng thư mục rồi thay thế nguyên tử, **sắp theo id**, `fresh` là float đầy đủ chữ số (đọc lại giữ đúng nhánh ngưỡng 30). Ngất ghi `{"items":[]}`; chạm `--ticks` trước `gather_end` không đụng file đích. `gather_end.data.inventory` cùng schema (JSONL làm tròn 3 chữ số).
+- Quán nhận nguyên số lượng, id và độ tươi, kể cả hàng ươn. Sức chứa chỉ áp lên giỏ.
+
+### 5.2 API Python (`chonoi/inventory.py`) cho các lát
+
+- Cá thể nội bộ `{"id", "kind", "fresh": Fraction}` — `Fraction` để so ngưỡng và floor giá chính xác. Không ghi `Fraction` ra JSON: dùng `item_out` / `items_out(items, ordered=True|False)`.
+- `validate_individuals(arr, kinds, name)` (JSON → nội bộ), `read_inventory` / `write_inventory`, `decay(items, amount, threshold, location)` → event `spoiled` theo id, `decay_per_tick(tuning, "gather"|"quan")`, `spoiled_below(tuning)`, `is_spoiled`, `counts(items, threshold=None)`.
+- Id cá thể họ `I` cấp bằng `IdAllocator.new("I")` theo thứ tự vào giỏ; trong `day` dùng **một allocator chung** nên id tăng xuyên pha và Ngày. `GatherSim(..., renew_hold_ids=True)` cấp id mới cho mẫu `gather.hold` ở Ngày ≥ 2 (giữ kind/fresh).
+
+### 5.3 Gather
+
+- `gather.hold` (scenario) và snapshot `hold`: mảng cá thể theo **thứ tự vào giỏ** (cuối mảng mới nhất). Hàng mới `fresh = initial`, hao từ bước sau.
+- Đầu bước (cùng nhóm đồng hồ/cooldown/hồi nút): giỏ hao `gather_decay_per_s / tick_hz`, kẹp đáy 0; `spoiled {item_id, kind, location: "hold"}` đúng một lần khi đi từ ≥ 30 xuống < 30, nhiều cá thể theo id.
+- `monster_hit.lost` và `faint.lost` là mảng cá thể theo thứ tự bỏ LIFO.
+
+### 5.4 Quán, day, Shop, HUD (đã tích hợp)
+
+- Quán (Trà, `chonoi/sim/quan.py`): `quan.stock` mảng cá thể, `customers[].reserved` mảng id; nội bộ dùng đơn vị nguyên 240/điểm (hao 1 đơn vị/tick). Đầu bước sau đồng hồ: hao kho (kể cả hàng giữ) → `spoiled {location:"stock"}` theo id → đơn có phần giữ vừa ươn nhả toàn bộ, thử giữ lại một lần theo `order_tick` rồi id bàn, thiếu → `unfulfillable`. Giữ chỗ lấy cá thể chưa ươn tươi nhất, hòa theo id. Bắt đầu nấu tiêu đúng id đang giữ, `base_price = floor(giá × trung bình fresh / 100)`; `cook_started.items` sắp theo kind rồi id.
+- Day (Thành, `chonoi/day.py`): bàn giao `gather.inventory_items()` cho quán trong cùng tick đổi pha; Ngày ≥ 2 cấp id mới cho mẫu `gather.hold`; `delivered` = `gather_end.inventory.items`. Shop nhận `stock` từ snapshot quán, không hao.
+- HUD (Thành, `chonoi/web/index.html`): bảng độ tươi (thanh + số, nhãn ươn theo `freshness.spoiled_below`), kho khả dụng loại trừ hàng giữ và hàng ươn.
+- Không còn adapter kho đếm ở bất kỳ module nào.

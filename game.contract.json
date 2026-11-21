@@ -1,5 +1,5 @@
 {
-  "contract_version": "1.1",
+  "contract_version": "1.2",
   "team": "rua",
   "team_size": 3,
   "build_cmd": "true",
@@ -7,6 +7,7 @@
   "headless_cmd": "python3 -m chonoi.headless",
   "tuning": {
     "tick_hz": 60,
+    "freshness": {"initial": 100, "gather_decay_per_s": 0.5, "quan_decay_per_s": 0.25, "spoiled_below": 30},
     "gather": {
       "duration_s": 180,
       "bounds": {"x": [0, 100], "d": [0, 30]},
@@ -96,7 +97,6 @@
       "max_ticks": 600,
       "upgrades": {"oxygen": [{"level": 1, "price": 200, "oxygen_max_s": 45}, {"level": 2, "price": 400, "oxygen_max_s": 60}], "hp": [{"level": 1, "price": 250, "hp_max": 4}, {"level": 2, "price": 500, "hp_max": 5}]}
     },
-    "freshness": {"initial": 100, "gather_decay_per_s": 0.5, "quan_decay_per_s": 0.25, "spoiled_below": 30},
     "score": {"reputation_multiplier": 100}
   }
 }
