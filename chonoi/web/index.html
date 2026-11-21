@@ -595,6 +595,32 @@ function drawQuan(w, h) {
   text("WASD / mũi tên đi · E tương tác bếp / bàn · Esc/P tạm dừng", 14, h - 14, { color: "#b6ccd7" });
 }
 
+// Benchmark (TICKET-04): chỉ bật khi URL có ?bench=<giây>[&warmup=<giây>] — do `python3 -m chonoi.bench` mở.
+// Làm nóng từ khung đầu tiên của cảnh đo, rồi ghi thời gian từng khung (ms) và gửi POST /bench.
+const BENCH = (() => {
+  if (typeof URLSearchParams === "undefined" || typeof location === "undefined") return null;  // môi trường test
+  const q = new URLSearchParams(location.search), d = parseFloat(q.get("bench"));
+  if (!(d > 0)) return null;
+  const warm = parseFloat(q.get("warmup"));
+  return { duration: d * 1000, warmup: (warm >= 0 ? warm : 3) * 1000, first: null, firstEpoch: null,
+           start: null, last: null, frames: [], sent: false };
+})();
+
+function benchTick(t) {
+  const b = BENCH;
+  if (b.sent) return;
+  if (b.first === null) { b.first = t; b.firstEpoch = performance.timeOrigin + t; b.last = t; return; }
+  if (t - b.first < b.warmup) { b.last = t; return; }
+  if (b.start === null) { b.start = t; b.last = t; return; }
+  b.frames.push(t - b.last);
+  b.last = t;
+  if (t - b.start >= b.duration) {
+    b.sent = true;
+    fetch("/bench", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ frame_ms: b.frames, measured_ms: t - b.start, first_frame_epoch_ms: b.firstEpoch }) });
+  }
+}
+
 function frame() {
   requestAnimationFrame(frame);  // đặt trước để lỗi vẽ không làm dừng vòng lặp
   const [w, h] = fit();
@@ -610,6 +636,7 @@ function frame() {
     overlay(w, h);
     updateFreshnessHud(snap);
     updatePanel();
+    if (BENCH) benchTick(performance.now());
   } else {
     text(offline ? "Không kết nối được máy chủ…" : "Đang tải…", w / 2, h / 2, { align: "center", size: 18 });
   }
