@@ -12,6 +12,7 @@ import math
 
 from ..ids import sort_by_id
 from ..inventory import hold_to_items
+from .monsters import build_monsters, find_hit, snapshot_monsters, start_recoil, update_monsters
 from .ramp import ramp_velocity
 
 TICK = 60.0
@@ -22,7 +23,8 @@ class GatherSim:
     mode = "gather"
     phase = "gather"
 
-    def __init__(self, tuning, scenario, streams, ids):
+    def __init__(self, tuning, scenario, streams, ids, day=1):
+        """`day`: Ngày hiện tại trong chế độ day (bố trí Cá Sấu theo from_day); gather độc lập dùng Ngày 1."""
         t = tuning["gather"]
         self.t = t
         self.rng = streams
@@ -59,7 +61,10 @@ class GatherSim:
         if "fish" not in scenario and self.fish_dynamic:
             for _ in range(int(t["fish_initial"])):
                 self._spawn_fish()
-        self.monsters = []  # lát B (Cá Sấu): danh sách quái, ghép qua _update_monsters
+        # lát B (Cá Sấu): scenario.gather.monsters thay bố trí mặc định của Ngày
+        self.monsters = build_monsters(t, scenario.get("monsters"), day)
+        for m in self.monsters:
+            ids.reserve(m["id"])
         self.money = 0
         self.earned = 0
         self.reputation = tuning["quan"]["reputation_initial"]
@@ -84,7 +89,7 @@ class GatherSim:
                       for n in sort_by_id(self.nodes)],
             "fish": [{"id": f["id"], "pos": f["pos"], "kind": f["kind"], "heading_deg": f["heading_deg"],
                       "age_ticks": f["age_ticks"]} for f in sort_by_id(self.fish)],
-            "monsters": self.monsters,
+            "monsters": snapshot_monsters(self.monsters),
         }
 
     # --- một bước ---------------------------------------------------------------
@@ -163,7 +168,26 @@ class GatherSim:
 
     # --- cá bơi và sinh ----------------------------------------------------------
     def _update_monsters(self, events) -> bool:
-        """Móc cho lát Cá Sấu. Trả True nếu người chơi ngất vì quái (đã phát faint + gather_end)."""
+        """Cá Sấu (lát B): cập nhật quái theo id rồi xét tối đa một hit (chonoi/sim/monsters.py).
+        Trả True nếu người chơi ngất vì quái (đã phát monster_hit, faint, gather_end)."""
+        if not self.monsters:
+            return False
+        recovered = update_monsters(self.monsters, self.pos, self.t)
+        m = find_hit(self.monsters, self.pos, self.invuln_ticks, self.t, recovered)
+        if m is None:
+            return False
+        cfg = self.t["monsters"]
+        lost = [self.hold.pop() for _ in range(math.floor(len(self.hold) * cfg["loss_ratio"]))]  # LIFO
+        self.hp -= 1
+        self.invuln_ticks = int(cfg["invuln_ticks"])
+        start_recoil(m, self.pos, self.t)
+        events.append(("monster_hit", {"monster_id": m["id"], "hp": self.hp, "lost": lost, "pos": list(self.pos)}))
+        if self.hp <= 0:
+            rest = list(reversed(self.hold))
+            self.hold.clear()
+            events.append(("faint", {"cause": "monster", "lost": rest, "hp": 0}))
+            self._finish("fainted", events)
+            return True
         return False
 
     def _swim_fish(self):

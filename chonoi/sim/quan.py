@@ -11,6 +11,7 @@ Một bước k -> k+1 (PRD-0 mục F, "Quán"):
   5. còn giờ: lượt khách mới theo lịch (first_customer_tick, rồi mỗi customer_interval_s × 60 tick)
 
 Kho `stock` là tồn VẬT LÝ (gồm phần khách đang giữ); khả dụng = stock − tổng `reserved` của khách.
+Contract v1.1: 2 bếp, 4 bàn, 6 món đọc từ tuning; trong chế độ day chỉ bán món thuộc kế hoạch Ngày.
 Món (trên bếp hoặc trên tay) là payload {order_id, dish_id, base_price}, order_id = id khách.
 """
 
@@ -48,10 +49,14 @@ class QuanSim:
     mode = "quan"
     phase = "quan"
 
-    def __init__(self, tuning, scenario, streams, ids, inventory=None):
+    def __init__(self, tuning, scenario, streams, ids, inventory=None, plan_dishes=None):
+        """`plan_dishes`: map/danh sách id món trong kế hoạch Ngày (chế độ day). None = quán chạy riêng,
+        bán cả thực đơn. Trong day, lọc menu theo kế hoạch TRƯỚC khi lọc nguyên liệu khả dụng (v1.1 §4.5)."""
         t = tuning["quan"]
         self.t = t
         self.menu = tuning["menu"]
+        # ứng viên món duyệt theo thứ tự cố định: id món theo mã Unicode
+        self.dish_pool = sorted(d for d in self.menu if plan_dishes is None or d in plan_dishes)
         self.rng = streams
         self.ids = ids
         self.patience_full = _ticks(t["patience_s"])
@@ -142,6 +147,8 @@ class QuanSim:
                 raise BadInput(f"đơn {oid}: base_price khác giá đã chốt trên món")
         missing = []
         for c in sort_by_id(self.customers):
+            if c["dish_id"] not in self.dish_pool:
+                raise BadInput(f"khách {c['id']}: món {c['dish_id']} không thuộc kế hoạch Ngày")
             st, status = c["state"], c["order_status"]
             if (st == "eating") != (status == "served"):
                 raise BadInput(f"khách {c['id']}: eating phải đi cùng order_status served")
@@ -337,7 +344,7 @@ class QuanSim:
             return  # không còn bàn: bỏ lượt
         table = free[0]  # self.tables đã sắp theo id
         avail = self._available()
-        cands = [d for d in sorted(self.menu)
+        cands = [d for d in self.dish_pool
                  if all(avail.get(k, 0) >= n for k, n in self.menu[d]["recipe"].items())]
         if not cands:
             events.append(("no_dish", {}))

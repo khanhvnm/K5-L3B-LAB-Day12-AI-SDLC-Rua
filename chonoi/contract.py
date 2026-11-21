@@ -4,6 +4,7 @@ import json
 import os
 
 from .errors import BadInput
+from .inventory import KINDS
 
 FISH_KINDS = ("ca_linh", "ca_loc", "ca_keo")
 NODE_KINDS = ("bong_dien_dien", "bong_sung", "keo_neo")
@@ -192,6 +193,13 @@ def validate_tuning(t):
         price, cook = d.get("price"), d.get("cook_s")
         if isinstance(price, bool) or not isinstance(price, int) or price <= 0 or not _num(cook) or cook <= 0:
             raise BadInput(f"menu.{dish_id}: price (nguyên) và cook_s phải > 0")
+        recipe = d.get("recipe")
+        if not isinstance(recipe, dict) or not recipe:
+            raise BadInput(f"menu.{dish_id}.recipe phải là map nguyên liệu -> số lượng")
+        for kind, qty in recipe.items():
+            if kind not in KINDS:
+                raise BadInput(f"menu.{dish_id}.recipe: nguyên liệu lạ {kind!r}")
+            _int_between(f"menu.{dish_id}.recipe.{kind}", qty, 1, 99)
     _validate_day(t, menu)
 
 
