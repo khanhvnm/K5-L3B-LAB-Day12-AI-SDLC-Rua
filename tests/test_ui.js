@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const script = fs.readFileSync(path.join(__dirname, '../chonoi/web/index.html'), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
-function client(fetchOverride) {
+function client(fetchOverride, options = {}) {
   const handlers = {}, calls = [], labels = [], fonts = [], timers = new Map();
   let timerId = 0;
   const context2d = new Proxy({}, {get: (target, key) => key === 'measureText' ? s => ({width: String(s).length * 7}) : key === 'createLinearGradient' ? () => ({addColorStop(){}}) : key === 'fillText' ? s => {labels.push(s); fonts.push(target.font);} : () => {}, set: Reflect.set});
@@ -15,8 +15,13 @@ function client(fetchOverride) {
       querySelector(){return this.children.find(el => el.tag === 'button' && !el.disabled);}, focus(){}, setAttribute(){}};
   }
   const elements = {c: element('canvas'), panel: element('section'), screen: element('div'), 'freshness-hud': element('aside')};
+  const classes = new Set(), storage = options.storage || new Map();
   const context = vm.createContext({innerWidth: 1280, innerHeight: 720, window: {devicePixelRatio: 1},
-    document: {getElementById: id => elements[id], createElement: element},
+    URLSearchParams, location: {search: options.search || ''},
+    localStorage: {getItem(key){if(options.blockStorage) throw Error('blocked'); return storage.get(key);},
+      setItem(key,value){if(options.blockStorage) throw Error('blocked'); storage.set(key,value);}},
+    document: {body: {classList: {toggle(name,on){on ? classes.add(name) : classes.delete(name);}}},
+      getElementById: id => elements[id], createElement: element},
     addEventListener: (name, callback) => handlers[name] = callback,
     requestAnimationFrame(){}, setTimeout(fn, ms){timers.set(++timerId, {fn, ms}); return timerId;},
     clearTimeout(id){timers.delete(id);},
@@ -26,8 +31,45 @@ function client(fetchOverride) {
   const key = (type, value) => handlers[type]({key: value, preventDefault(){}, repeat: false});
   const panelText = () => elements.panel.children.map(el => el.textContent);
   const click = label => elements.panel.children.find(el => el.textContent.includes(label)).handlers.click();
-  return {run, key, handlers, calls, labels, fonts, timers, panelText, click, freshness: elements['freshness-hud']};
+  return {run, key, handlers, calls, labels, fonts, timers, panelText, click, classes, storage, freshness: elements['freshness-hud']};
 }
+test('cảnh báo oxy đúng biên 25%, dùng mức oxy đang nâng cấp', () => {
+  const c = client();
+  const draw = value => { c.labels.length=0; c.run(`snap={player:{pos:[40,10],oxygen_ticks:${value},oxygen_max_ticks:3600}}; drawGather(1280,720)`); };
+  draw(900); assert.ok(!c.labels.some(x=>x.includes('Sắp hết hơi')));
+  draw(899); assert.ok(c.labels.includes('⚠ Sắp hết hơi!'));
+  draw(0); assert.ok(c.labels.includes('Hết hơi!')); assert.ok(!c.labels.includes('⚠ Sắp hết hơi!'));
+});
+test('cảnh báo kiên nhẫn có chữ cạnh bàn, không cảnh báo khách đang ăn', () => {
+  const c = client();
+  c.run('snap={meta:{patience_s:20},tables:[{id:"T1",pos:[9,2]}],customers:[{table_id:"T1",state:"waiting",patience_ticks_left:300}]}; drawQuan(1280,720)');
+  assert.ok(!c.labels.includes('⚠ Sắp giận!'));
+  c.run('snap.customers[0].patience_ticks_left=299; drawQuan(1280,720)');
+  assert.ok(c.labels.includes('⚠ Sắp giận!')); c.labels.length=0;
+  c.run('snap.customers[0].state="eating"; drawQuan(1280,720)');
+  assert.ok(!c.labels.includes('⚠ Sắp giận!'));
+});
+test('thủy quái có biểu tượng, ngoài bán kính không cảnh báo', () => {
+  const c=client(undefined,{search:'?contrast=high'});
+  c.run('snap={player:{pos:[60,24]},meta:{monsters:{species:{ca_sau:{depths:[10,30],detect_radius:10}}}},monsters:[{id:"M1",kind:"ca_sau",pos:[60,24]}]}; drawGather(1280,720)');
+  assert.ok(c.labels.includes('⚠ Thủy quái!')); c.labels.length=0;
+  c.run('snap.player.pos=[2,0]; drawGather(1280,720)');
+  assert.ok(!c.labels.includes('⚠ Thủy quái!'));
+});
+test('H và nút menu/pause đổi tương phản, lưu sau tải lại; storage bị chặn vẫn chơi được', async () => {
+  const c=client(); await new Promise(setImmediate);
+  c.run('snap={mode:"day",screen:"menu",screen_id:1}; updatePanel()');
+  c.click('Tương phản cao'); c.run('updatePanel()');
+  assert.ok(c.classes.has('high-contrast')); assert.ok(c.panelText().includes('Tương phản cao: Bật (H)'));
+  const reloaded=client(undefined,{storage:c.storage}); assert.equal(reloaded.run('highContrast'),true);
+  c.run('snap={mode:"day",screen:"playing",state:"paused",screen_id:2}; updatePanel()');
+  c.key('keydown','h'); c.run('updatePanel()'); assert.equal(c.run('highContrast'),false);
+  assert.ok(c.panelText().includes('Tương phản cao: Tắt (H)'));
+  const intro=client(undefined,{search:'?contrast=high',blockStorage:true});
+  intro.run('snap={screen:"day_intro"}'); intro.key('keydown','h');
+  assert.equal(intro.run('highContrast'),false); assert.ok(!intro.calls.some(x=>x.url==='/advance'));
+  assert.equal(client(undefined,{search:'?contrast=normal',storage:c.storage}).run('highContrast'),false);
+});
 test('giữ hai phím cùng hướng rồi nhả một vẫn di chuyển', () => {
   const c = client(); c.key('keydown','w'); c.key('keydown','ArrowUp'); c.key('keyup','w');
   assert.equal(c.run('currentInput().move[1]'), -1);

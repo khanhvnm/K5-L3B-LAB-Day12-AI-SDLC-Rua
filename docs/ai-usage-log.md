@@ -1,5 +1,7 @@
 # Nhật ký dùng AI (theo phase và theo người)
 
+Phase 4 — Thành / Codex: fetch main, triển khai cảnh báo/tương phản cao và test UI, README/LICENSE/CREDITS, clone sạch Windows và ảnh Chrome qua fixture hợp lệ. AI sai: lệnh thay màu chưa ghi được Canvas, phát hiện khi xem ảnh; sửa bằng patch, kiểm chữ Canvas và pixel nền. Công cụ proof từng lấy pixel ở viền cảnh báo/viền sàn nên báo sai, đã chuyển vào khoảng trống. Node 16/16, regression 168/168; [proof](proof/phase-4/day-ui.md). Không stage/commit/push, không tự viết phản tư cá nhân thay Thành. Token/chi phí: chưa đo.
+
 | Phase | Người | Công cụ / model | Việc | Token / chi phí ước tính | Ghi chú (AI sai ở đâu?) |
 |---|---|---|---|---|---|
 | 1 | khanhvnm | Codex (GPT-6) | Rà PRD, soạn kế hoạch/TEAM/hợp đồng tích hợp, triển khai luật `gather`, tổng hợp bằng chứng test và smoke | chưa đo | Khánh rà output test 51/51 và smoke; các luật oxy/hái/bắt cá vẫn cần kiểm chứng trực tiếp. |
