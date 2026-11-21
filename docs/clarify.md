@@ -15,4 +15,5 @@
 | P2-02 | 2026-11-21 | "8 điểm khác nhau" lúc đầu ca: khác cặp loài–điểm hay khác vị trí hình học? | Giả định: khác vị trí hình học (cách nhau > `fish_spawn_clearance`), dùng cùng thủ tục với sinh theo lịch; cặp linh/lóc cùng `[x,10]` không cùng xuất hiện. | Khánh (giả định) |
 | P2-03 | 2026-11-21 | Hướng mới khi đổi hướng ở bước 120·k lấy phân bố nào? | Giả định: đều trên [0°, 360°) từ luồng RNG `fish_swim`, mỗi đàn một lần rút theo thứ tự id. Test không ghi cứng giá trị. | Khánh (giả định) |
 | P2-04 | 2026-11-21 | Shop: lệnh `buy` ngoài oxygen/hp (mở rộng chưa bật) xử lý thế nào? | `buy_failed` với `reason: "unknown"`, tiền và cấp giữ nguyên, theo §4.2 ticket. | Khánh |
-
+| P2-UI-01 | Phase 2 | Khi nào rời EveningIntro và DayResult? | Ticket chỉ nêu thời gian tự chuyển cho DayIntro (4 giây). Nhánh UI dùng nút hoặc phím để tiếp tục ở hai màn còn lại; các màn chỉ dừng vòng tick trên trình duyệt. | Giả định lát UI, chờ PO xác nhận |
+| P2-D-01 | Phase 2 | Kiểm mâu thuẫn fixture quán khi kho thật chỉ có ở cuối gather? | Kiểm cấu trúc trước, kiểm món theo kế hoạch và kho thật khi mở quán. CLI trả mã 2 và giữ nguyên file đích nếu có lỗi muộn. | TICKET-02 §4.3; điều phối Thành |

@@ -40,7 +40,8 @@ def _check_entry(where, entry, menu, require_ingredients):
             raise BadInput(f"{where}.dishes.{dish_id} phải là số nguyên dương")
     want = plan_ingredients(dishes, menu)
     if "ingredients" in entry:
-        if entry["ingredients"] != want:
+        declared = entry["ingredients"]
+        if not isinstance(declared, dict) or any(type(v) is not int for v in declared.values()) or declared != want:
             raise BadInput(f"{where}.ingredients phải bằng tổng công thức × suất: {want}")
     elif require_ingredients:
         raise BadInput(f"{where} thiếu ingredients")
@@ -53,7 +54,7 @@ def validate_day_plan(day_plan, menu) -> list:
         raise BadInput(f"tuning.day_plan phải là mảng đúng {MAX_DAYS} Ngày")
     out = []
     for i, entry in enumerate(day_plan, start=1):
-        if not isinstance(entry, dict) or entry.get("day") != i:
+        if not isinstance(entry, dict) or type(entry.get("day")) is not int or entry["day"] != i:
             raise BadInput(f"tuning.day_plan[{i - 1}].day phải là {i}")
         out.append(_check_entry(f"tuning.day_plan[{i - 1}]", entry, menu, require_ingredients=True))
     return out

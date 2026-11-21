@@ -6,6 +6,8 @@
 - Test: `PYTHONPATH=tests:. python3 -m unittest discover -s tests -v`
 - Headless: `python3 -m chonoi.headless --mode gather|quan --seed 1 --ticks 600 --out out.jsonl`
 - Chơi thử trên trình duyệt: `python3 -m chonoi.live --mode gather|quan` (mở địa chỉ in ra; WASD, E, Space, R)
+- Test lát day Phase 2 trên PowerShell: `$env:PYTHONPATH='tests;.'; python3 -m unittest tests.test_day -v`.
+- Chạy day v1.1: `python3 -m chonoi.live --mode day --days 5` (Esc/P tạm dừng), `python3 -m chonoi.headless --mode day --days 1 --seed 1 --ticks 22200 --out out.jsonl`.
 
 ## Cấu trúc & quy ước
 - (Starter Python là TÙY CHỌN; nhóm có thể dùng ngôn ngữ khác nếu giữ Test Contract.) Khung do giảng viên cấp: `chonoi/{headless,inputs,scenario,contract,rng,ids,jsonl,inventory,runner,live}.py` và `chonoi/web/`. Hạn chế sửa; nếu phải sửa thì báo cả nhóm và ghi lại lý do.
@@ -23,10 +25,12 @@
 ## Quy tắc làm việc với agent
 - Trước khi tạo thư mục, nói rõ tên/vị trí và mục đích cho người dùng. Thư mục tạm do tác vụ tạo chỉ để kiểm thử/chạy thử phải tự dọn sau khi xong, kể cả khi lỗi; không xóa thư mục có sẵn hoặc file test/bằng chứng cần bàn giao.
 - Thành phụ trách client/ui trên nhánh `p1/ui`; lỗi luật gather/quán chuyển chủ module theo TEAM.md. Không stage/commit/push khi người dùng muốn tự commit.
+- Phase 2: Thành phụ trách điều phối day/pause và UI trên `p2/day-ui`; dùng preset và Shop của Khánh, kế hoạch ngày và luật quán của Trà. Test vòng ngày gọi Shop thật, có thể rút ngắn ca bằng fixture.
 - Test UI: `node --test tests/test_ui.js` (Node có sẵn, không cần npm install). Lệnh unittest chung cũng chạy test này khi có Node; thiếu Node phải báo skip.
 - Mỗi agent một việc rõ ràng (một lát). Cho agent đọc PRD/ticket đúng phase và hợp đồng kho trước.
 - Agent làm xong phải chạy test và ghi kết quả vào mô tả commit hoặc `docs/proof/`; người đọc lại thay đổi trước khi đẩy.
 - Sáng tạo thêm được khuyến khích nhưng phải tắt ở headless (xem README, mục "Tự do sáng tạo").
 
 ## Skills / hooks của nhóm
-- (Ghi tên và khi nào dùng; tối thiểu 2 skill/hook/command nhóm tự viết, đặt ở `.agents/skills/` hoặc tương đương.)
+- [contract-review](docs/skills/contract-review.md): rà schema, thứ tự sự kiện và bàn giao giữa module.
+- [phase-proof](docs/skills/phase-proof.md): ghi lệnh, kết quả và phạm vi kiểm chứng mỗi phase.
