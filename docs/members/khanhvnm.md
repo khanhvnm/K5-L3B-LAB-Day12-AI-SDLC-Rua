@@ -1,26 +1,11 @@
 # Vũ Nam Khánh — `khanhvnm`
 
-## Phase 1
+> Nháp, Khánh tự soát trước khi nộp.
 
-- Vai: PO, Integrator, QA lead, Scrum/Release.
-- Module chính: `sim/gather`.
-- Bằng chứng: [kế hoạch Phase 1](../plan/phase-1.md), [hợp đồng tích hợp](../contracts/README.md), [test Gather](../proof/phase-1/gather-rules-tests.md), [handoff kho](../proof/phase-1/test-and-handoff.md), [ma trận kiểm chứng](../verification/phase-1.md).
-- Commits liên quan: `e491f20`, `1be7d1c`, `33f666d`, `e6128c0`. Các commit tài liệu/merge còn lại dùng nhiều Git author name; cần đối chiếu trang contributor của GitHub để xác nhận đầy đủ theo handle.
+**Phần mình làm.** PO, Integrator, QA lead cả bốn phase: kế hoạch, AC, hợp đồng. Luật `gather` (P1); contract v1.1, cá bơi, Shop (`1c2e678`, `787fd22`); kho cá thể v1.2 (`35dbdea`); manifest v1.3 và bench (`e8f29c8`, `7f9a0f6`). Tích hợp PR #1–#13, gắn tag.
 
-## Phase 2
+**Đã giúp ai.** Ghép lát schema với Quán của Trà và Day/HUD của Thành khi `main` đỏ (`e3e019b`), gỡ adapter và khối contract trùng. Review PR #5, #6, chạy smoke cho nhóm ([P2](../proof/phase-2/integration.md), [P3](../proof/phase-3/integration.md)).
 
-- Vai: PO, Integrator, QA lead; chủ hợp đồng v1.1.
-- Việc: kế hoạch và AC-P2 (`docs/plan/phase-2.md`); `game.contract.json` 1.1 và `chonoi/contract.py`; cá bơi/sinh trong `chonoi/sim/gather.py`; luật Shop `chonoi/sim/shop.py`; test `tests/test_gather_v11.py`, `tests/test_shop_rules.py`; review PR #5, #6; smoke tích hợp và smoke day; verification Phase 2.
-- Commits: `1c2e678` (gather/contract), `787fd22` (shop), `62b35b8` (docs); merge PR #4, #6.
-- Bằng chứng: [integration.md](../proof/phase-2/integration.md), [day-smoke.md](../proof/phase-2/day-smoke.md), [verification](../verification/phase-2.md).
+**AI sai ở đâu.** Đặt tên import trùng biến cục bộ trong `day.py`. Chèn JS bench làm hỏng 12 test UI Node. Tự thêm `Co-Authored-By` vào commit. Phát hiện nhờ chạy lại full suite và đọc commit trước khi đẩy.
 
-## Phase 3
-
-- Vai: PO, chủ hợp đồng v1.2, Integrator.
-- Việc: kế hoạch và phân tích tác động (`docs/plan/phase-3.md`); lát S (`chonoi/inventory.py`, contract 1.2) và G (độ tươi gather); di chuyển fixture test P1–P2; `tests/test_fresh_v12.py`; tích hợp `p3/schema` với lát Quán/Day; smoke và verification Phase 3.
-- Commits: `35dbdea`, `2a5c0f6`, `6368d06` (p3/schema) và commit tích hợp trên `p3/integrate`.
-- Bằng chứng: [schema-gather.md](../proof/phase-3/schema-gather.md), [integration.md](../proof/phase-3/integration.md).
-
-## Tự phản tư
-
-Khánh cần tự ghi điều đã học, phần đã review và một lỗi AI đã phát hiện trước khi nộp retro cá nhân.
+**Bài học.** PR đổi hợp đồng phải vào `main` trước PR phụ thuộc; Phase 3 mình để lát schema ngoài `main` nên hai bạn phải tự viết adapter. Chạy smoke ngay sau mỗi lần merge, không dồn cuối phase.

@@ -33,6 +33,7 @@ Bản đóng gói đính kèm: `chonoi-v1.0.0.zip` (mã nguồn tại commit ph�
 - Benchmark cần trình duyệt họ Chromium; không có thì trả mã 1. Số đo headless không khóa vsync (xem `docs/proof/phase-4/bench.md`).
 - Quán làm tròn `fresh` của fixture tới bội 1/240; fixture không biểu diễn chính xác có thể lệch nhánh ngưỡng ươn 1 tick (`docs/clarify.md` P3-05).
 - JSONL làm tròn số thực 3 chữ số; file kho ghi đầy đủ.
-- Chưa có lượt chơi tay đầy đủ 5 Ngày được ghi lại trong bằng chứng ngoài demo.
+- Clone sạch ≤ 3 lệnh mới kiểm trên Windows (`python` thay `python3` nếu cần); Linux/macOS chưa có máy để chạy thử.
+- Cảnh báo và tương phản cao được kiểm bằng test Node và ảnh Chrome headless; lượt chơi tay đầy đủ 5 Ngày chỉ có trong demo.
 
 Chi tiết: [CHANGELOG.md](../CHANGELOG.md), ma trận kiểm chứng `docs/verification/phase-1..4.md`.

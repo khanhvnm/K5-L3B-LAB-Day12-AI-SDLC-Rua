@@ -20,7 +20,7 @@
 |---|---|---|---|
 | P2 | Mỗi lát mở PR nhỏ ít nhất một lần trước phút 25 và chạy smoke tích hợp ngay khi PR vào `main` (Khánh nhắc ở standup) | **Một phần** | Lát Quán vào `main` ở phút 22 (PR #8). Day/UI vào ở phút 34 (PR #9). Lát schema S+G không có PR riêng vào `main`, chỉ được ghép ở `p3/integrate` phút 44 (`e3e019b`). Smoke tích hợp chỉ chạy sau lần ghép đó, nên `main` đỏ 5 test trong khoảng giữa PR #8 và lần ghép. |
 | P2 | Thành commit theo từng phần nhỏ (Thành) | **Chưa** | Phase 3 Thành có 1 commit `000593e` ("p3"), Phase 2 có 1 commit lớn `5742593`. Cần nhóm hỏi Thành vướng gì (làm trên máy rồi đẩy một lần?). |
-| P3 | PR đổi hợp đồng/schema phải merge trước mọi PR phụ thuộc; kiểm `git merge-base --is-ancestor` trước khi merge (Khánh) | Đánh giá cuối Phase 4 | Kế hoạch P4 đặt manifest 1.3 merge **trước tiên**; điền kết quả khi gắn tag `phase-4`. |
+| P3 | PR đổi hợp đồng/schema phải merge trước mọi PR phụ thuộc; kiểm `git merge-base --is-ancestor` trước khi merge (Khánh) | **Một phần** | Commit manifest 1.3 (`e8f29c8`) được tách riêng và đẩy đầu tiên, nhưng PR #11 (soak) vẫn vào `main` trước PR #12 (bench + manifest). Soak không vỡ vì chỉ cần `soak_cmd` khai ở #12; Khánh merge `main` vào `p4/bench` (`a94d2d6`) rồi mới merge #12, và chạy lại full suite 168/168 trên `main@f186618`. Bài học: PR manifest cần merge **ngay** khi xanh, không chờ gom với code bench. |
 
 ### Bằng chứng đóng góp (commit không tính merge, trên `main`)
 | Người | P1 | P2 | P3 | Phần chính và bằng chứng |
@@ -39,4 +39,4 @@ Phase 4, lát soak (Trà, Claude Code): bot đọc `time_left_ticks` từ snapsh
 - Tốt: mỗi lát tự viết test hộp đen theo Test Contract (suite tăng từ 32 lên 160 test); hợp đồng ghi trong `docs/contracts/` trước khi build.
 - Cần sửa: tích hợp dồn cuối phase; schema đi trước trên kế hoạch nhưng không đi trước khi merge; commit lớn một lần.
 - Nếu làm lại: merge PR schema ngay khi xanh rồi mới mở PR phụ thuộc; chạy smoke ngay sau mỗi PR vào `main`; mỗi người đẩy ít nhất một commit nhỏ trước phút 20.
-- Hành động tiếp theo: _(nhóm chốt trong buổi retro, ghi người nhận)_
+- Hành động tiếp theo (đề xuất của Khánh, nhóm xác nhận): (1) dự án sau bật branch rule "PR schema/hợp đồng phải merge trước" và CI chạy smoke tích hợp sau mỗi merge — **Khánh**; (2) mỗi người đẩy commit nhỏ trước phút 20 của mỗi phase — **Thành**; (3) review chéo có dấu vết (comment PR) theo `TEAM.md` — **Trà**.

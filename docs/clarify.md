@@ -29,3 +29,4 @@
 | P4-01 | 2026-11-21 | Bench "có render" làm thế nào khi UI là Canvas trong trình duyệt? | Chạy trang thật trong Chromium headless 1280×720, đo `requestAnimationFrame`, không khóa vsync. Không có trình duyệt → mã 1, không bịa số. Cần hỏi Anh Năm máy chấm có Chromium không. | Khánh |
 | P4-02 | 2026-11-21 | `load_ms` tính từ đâu tới đâu? | Từ lúc tiến trình `bench_cmd` khởi chạy (import module) tới khung đầu tiên có snapshot của cảnh đo (đồng hồ epoch chung của máy). | Khánh (giả định) |
 | P4-03 | 2026-11-21 | Avg FPS headless ~1.600–1.900 có hợp lệ? | Là khả năng render khi không khóa khung; ghi rõ trong `docs/proof/phase-4/bench.md`. Bản chơi thường bị giới hạn theo vsync màn hình. | Khánh |
+| P4-04 | 2026-11-21 | Tag `phase-4` và Release `v1.0.0` trỏ commit nào? | Cùng commit merge PR `p4/release` trên `main`; ZIP tạo bằng `git archive` từ tag `phase-4`; Release tạo trên GitHub từ tag đó (máy integrator không có `gh`). | Khánh |
