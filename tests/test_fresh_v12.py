@@ -45,7 +45,7 @@ def gather_cli(w, scenario, ticks=1, input_frames=(), inventory_out=True):
 class Contract12(unittest.TestCase):
     def test_version_and_freshness_block(self):
         c = load_contract()
-        self.assertEqual(c["contract_version"], "1.2")
+        self.assertIn(c["contract_version"], ("1.2", "1.3"))  # v1.3 giữ gameplay/kho v1.2
         self.assertEqual(c["tuning"]["freshness"],
                          {"initial": 100, "gather_decay_per_s": 0.5, "quan_decay_per_s": 0.25, "spoiled_below": 30})
 

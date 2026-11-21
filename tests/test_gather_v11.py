@@ -35,7 +35,7 @@ def one_fish(kind="ca_loc", pos=(50, 14), heading=0, **extra):
 
 class Contract(unittest.TestCase):
     def test_version_and_standard_numbers(self):
-        self.assertIn(load_contract()["contract_version"], ("1.1", "1.2"))  # v1.2 giữ số chuẩn v1.1
+        self.assertIn(load_contract()["contract_version"], ("1.1", "1.2", "1.3"))  # v1.2/v1.3 giữ số chuẩn v1.1
         self.assertEqual((G["duration_s"], G["oxygen_max_s"], G["hold_capacity"]), (180, 30, 12))
         self.assertEqual(G["fish_yield"], {"ca_linh": 3, "ca_loc": 1, "ca_keo": 2})
         self.assertEqual([(n["id"], n["kind"]) for n in G["nodes"]][4:], [("N5", "keo_neo"), ("N6", "keo_neo")])
