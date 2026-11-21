@@ -34,8 +34,19 @@ python3 -m chonoi.headless --mode quan --seed 42 --inventory "$proof/inventory.j
 
 ## Giới hạn bằng chứng
 
-Output này xác nhận contract/test suite và bàn giao kho. Nó không kiểm chứng trực tiếp luật oxy/ngạt/ngất, hái/mọc lại, bắt cá/hồi chiêu/giỏ đầy hoặc HUD/UI; các mục đó vẫn cần bằng chứng riêng.
+Tại thời điểm lập smoke ban đầu, output này chỉ xác nhận contract/test suite và bàn giao kho; chưa có bằng chứng trực tiếp cho Gather rules hay HUD/UI. Các bằng chứng được bổ sung ở những mục dưới đây và [ui-p1.md](../ui-p1.md).
 
 ## Bổ sung kiểm chứng Gather
 
-Phần giới hạn trên mô tả trạng thái tại thời điểm ghi smoke ban đầu. Sau đó, Khánh chạy bộ test headless trực tiếp cho các luật Gather và toàn bộ suite; kết quả mới nhất là **10/10 test Gather** và **61/61 test toàn bộ**, đều pass. Chi tiết: [gather-rules-tests.md](gather-rules-tests.md). UI/HUD vẫn chưa được kiểm chứng trực tiếp.
+Phần giới hạn trên mô tả trạng thái tại thời điểm ghi smoke ban đầu, trước khi UI merge. Sau đó, Khánh chạy bộ test headless trực tiếp cho các luật Gather và toàn bộ suite; kết quả ở lần đó là **10/10 test Gather** và **61/61 test toàn bộ**, đều pass. Chi tiết: [gather-rules-tests.md](gather-rules-tests.md). Bằng chứng UI được bổ sung ở [ui-p1.md](../ui-p1.md); kết quả full suite mới nhất sau UI merge ở mục dưới.
+
+## Full suite sau khi tích hợp UI
+
+Sau khi UI được merge vào `main`, Khánh chạy lại:
+
+```powershell
+$env:PYTHONPATH = "tests;."
+python3 -m unittest discover -s tests -v
+```
+
+Kết quả: **Ran 62 tests in 32.405s — OK**. Test `test_canvas_client` cũng gọi Node UI suite; Node suite độc lập đã được chạy riêng và đạt **7/7**. Kết quả này thay thế số tổng 61 test ở lần chạy trước khi UI merge.

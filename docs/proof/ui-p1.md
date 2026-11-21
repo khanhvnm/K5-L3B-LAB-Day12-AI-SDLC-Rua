@@ -42,5 +42,5 @@ git diff --check
 
 - Chạy lại `node --test tests/test_ui.js` trên `main`: **7/7 pass**.
 - Đã kiểm tra các thay đổi được tích hợp ở `chonoi/web/index.html`; bộ test bao phủ xử lý phím, hai trục mode quán/gather, hiển thị tên món và thông báo, HUD khi snapshot thiếu trường tùy chọn, lỗi HTTP và thứ tự restart/input.
-- Chưa chạy lại toàn bộ Python unittest trong môi trường rà soát này vì PowerShell không tìm thấy lệnh `python3`. Kết quả toàn bộ 61/61 được ghi trước khi UI merge; cần chạy lại sau merge trên máy có Python.
+- Khánh đã chạy lại toàn bộ Python unittest sau UI merge: **62/62 pass**. Test `test_canvas_client` gọi Node UI suite; Node suite độc lập đã chạy riêng và pass 7/7.
 - Smoke Chrome headless ở hai kích thước cho cả hai mode đã được ghi ở phần trên. Đây là kiểm tra bố cục/hiển thị ban đầu; không thay thế lượt chơi tay qua toàn bộ gameplay.

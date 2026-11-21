@@ -18,3 +18,11 @@
 - Quy mô nhóm 3 người đã được chấp nhận; các vai quy trình kiêm nhiệm theo `TEAM.md`. Rủi ro còn lại là tải việc lớn, nên ưu tiên lõi và chuyển hỗ trợ theo standup.
 - Phạm vi lõi lớn cho 60 phút; ưu tiên Test Contract, bàn giao kho và smoke hai mode trước HUD/ý tưởng sáng tạo. Dùng standup ngắn và chuyển người hỗ trợ lát bị vướng quá 10 phút.
 - Thay schema hoặc tuning giữa chừng có thể làm hỏng tích hợp; chốt hợp đồng đầu phase, mọi giả định ghi `docs/clarify.md`, không thay số chuẩn nếu chưa thống nhất.
+
+## Kết quả và trạng thái bàn giao
+
+- `gather`, `quan` và UI/HUD đã được tích hợp trên `main`; smoke kho gather → quan đạt.
+- Kết quả gần nhất do Khánh cung cấp trước lần chỉnh validator nhóm: full suite **62/62 pass** trong 32.405 giây; Node UI độc lập **7/7 pass**; test Gather tập trung **10/10 pass**. Sau chỉnh validator quy mô nhóm 3–6, cần chạy lại full suite.
+- Proof: [ma trận kiểm chứng](../verification/phase-1.md), [test và handoff](../proof/phase-1/test-and-handoff.md), [Gather](../proof/phase-1/gather-rules-tests.md), [UI](../proof/ui-p1.md).
+- **Chưa phát hành:** hiện chưa có tag `phase-1` trong repo. Tag cần trỏ tới commit trên `main` sau khi hoàn tất chỉnh sửa tài liệu và test validator.
+- Lịch sử commit hiện có chưa chứng minh đủ 3 commit có nội dung cho từng thành viên; cần thành viên bổ sung commit thật bằng tài khoản của mình trước hạn chung của lab.
