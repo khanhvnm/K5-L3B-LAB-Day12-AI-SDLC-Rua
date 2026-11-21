@@ -87,9 +87,18 @@ class DayPlan(unittest.TestCase):
                 validate_tuning(t)
 
 
+def as_items(counts):
+    """Kho đếm -> kho cá thể v1.2 (fresh ban đầu), id S1, S2, …"""
+    out = []
+    for kind, n in counts.items():
+        for _ in range(n):
+            out.append({"id": f"S{len(out) + 1}", "kind": kind, "fresh": TUNING["freshness"]["initial"]})
+    return out
+
+
 class QuanTheoKeHoach(unittest.TestCase):
     def first_customer(self, stock, plan, seed=1):
-        sim = QuanSim(TUNING, {"stock": stock}, Streams(seed), IdAllocator(), plan_dishes=plan)
+        sim = QuanSim(TUNING, {"stock": as_items(stock)}, Streams(seed), IdAllocator(), plan_dishes=plan)
         events = []
         for _ in range(FIRST):
             events += sim.step(IDLE)
@@ -114,7 +123,7 @@ class QuanTheoKeHoach(unittest.TestCase):
         self.assertEqual(events, [("no_dish", {})])
 
     def test_khach_fixture_goi_mon_ngoai_ke_hoach_ma_2(self):
-        scenario = {"stock": {"ca_keo": 2},
+        scenario = {"stock": as_items({"ca_keo": 2}),
                     "customers": [{"id": "C1", "table_id": "T1", "dish_id": "ca_keo_nuong"}]}
         with self.assertRaises(BadInput):
             QuanSim(TUNING, scenario, Streams(1), IdAllocator(), plan_dishes=EXPECTED[1][0])
