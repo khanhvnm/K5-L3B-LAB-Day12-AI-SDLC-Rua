@@ -28,6 +28,7 @@
 - Thành phụ trách client/ui trên nhánh `p1/ui`; lỗi luật gather/quán chuyển chủ module theo TEAM.md. Không stage/commit/push khi người dùng muốn tự commit.
 - Phase 2: Thành phụ trách điều phối day/pause và UI trên `p2/day-ui`; dùng preset và Shop của Khánh, kế hoạch ngày và luật quán của Trà. Test vòng ngày gọi Shop thật, có thể rút ngắn ca bằng fixture.
 - Test UI: `node --test tests/test_ui.js` (Node có sẵn, không cần npm install). Lệnh unittest chung cũng chạy test này khi có Node; thiếu Node phải báo skip.
+- Phase 4: Thành làm cảnh báo/tương phản và đóng gói trên `p4/day-ui`; không đổi bench/soak/contract. Chụp proof bằng `python3 tools/proof_day_ui.py` (Chrome + Node 22+, hồ sơ tạm tự dọn). Integrator tạo ZIP bằng `git archive` từ tag bàn giao; không gắn tag/Release thay chủ nhiệm.
 - Mỗi agent một việc rõ ràng (một lát). Cho agent đọc PRD/ticket đúng phase và hợp đồng kho trước.
 - Agent làm xong phải chạy test và ghi kết quả vào mô tả commit hoặc `docs/proof/`; người đọc lại thay đổi trước khi đẩy.
 - Sáng tạo thêm được khuyến khích nhưng phải tắt ở headless (xem README, mục "Tự do sáng tạo").

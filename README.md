@@ -13,15 +13,53 @@ Cách làm việc kỹ thuật là **tự do** (push thẳng, nhánh + PR, pair,
 4. **Gắn tag** `phase-1` … `phase-4` đúng hạn; chạy được tại từng tag.
 5. **Ghi chép tối thiểu:** `docs/verification/phase-n.md`, `docs/clarify.md`, `docs/ai-usage-log.md`, `docs/retro.md`, `docs/members/<handle>.md`.
 
-## Bắt đầu nhanh
+## Chạy nhanh (≤ 3 lệnh)
+
+Cần **Python 3.10+** (chỉ thư viện chuẩn), Git để clone, và trình duyệt hiện đại để chơi. Không cần pip/npm install. Trên Windows nếu không có `python3`, thay bằng `python` hoặc `py -3`.
 
 ```bash
-git clone <fork-của-nhóm> && cd <fork-của-nhóm>
-PYTHONPATH=tests:. python3 -m unittest discover -s tests -v        # smoke test
-python3 -m chonoi.live --mode gather                                # chơi thử trên trình duyệt (tùy chọn)
+git clone https://github.com/khanhvnm/K5-L3B-LAB-Day12-AI-SDLC-Rua.git
+cd K5-L3B-LAB-Day12-AI-SDLC-Rua
+python3 -m chonoi.live --mode day --days 5
 ```
 
-Game cần chế độ **headless** theo Test Contract (`python3 -m chonoi.headless --mode gather|quan …`) để được chạy và chấm tự động. **Công nghệ không ràng buộc**: khung Python trong `chonoi/` chỉ là gợi ý, chi tiết ở [`docs/STARTER.md`](docs/STARTER.md).
+Mở địa chỉ HTTP in ở terminal (mặc định `http://127.0.0.1:8000/`), chọn **Chơi**. Ctrl+C tại terminal để dừng. Nếu cổng bận, thêm `--port 0`. Bản ZIP: giải nén, mở terminal tại thư mục chứa `game.contract.json`, chạy lệnh cuối. [Bằng chứng Windows](docs/proof/phase-4/clean-clone.md).
+
+| Điều khiển | Tác dụng |
+|---|---|
+| WASD / mũi tên | Bơi buổi sáng, đi lại trong quán |
+| E | Hái/cập bến; tương tác bếp/bàn |
+| Space | Bắt cá khi lặn |
+| Esc / P | Tạm dừng / tiếp tục |
+| H | Bật/tắt tương phản cao, nhớ trên trình duyệt |
+| R | Chơi lại |
+| Tab, Enter | Chọn/kích hoạt nút menu và Shop |
+
+Tương phản cao cũng có nút trong menu/pause/Shop hoặc mở `?contrast=high`. Nền đen, chữ trắng, vật thể vàng/trắng và viền dày; các cảnh báo có chữ/biểu tượng: **⚠ Sắp hết hơi!** khi oxy < 25%, **⚠ Sắp giận!** khi khách chờ còn < 25% kiên nhẫn, **⚠ Thủy quái!** khi ở vùng nguy hiểm. Oxy bằng 0 hiển thị **Hết hơi!**. Bảng độ tươi ghi số và nhãn **Ươn**; không chỉ dựa vào màu.
+
+## Kiểm thử, headless và hiệu năng
+
+```bash
+PYTHONPATH=tests:. python3 -m unittest discover -s tests -v
+node --test tests/test_ui.js
+python3 -m chonoi.headless --mode day --days 1 --seed 1 --ticks 22200 --out day.jsonl
+python3 -m chonoi.bench --seed 42 --duration 30 --out bench.json
+python3 -m chonoi.soak --seed 7 --days 10 --out soak.json
+```
+
+PowerShell dùng `$env:PYTHONPATH='tests;.'; python3 -m unittest discover -s tests -v`; cmd dùng `set PYTHONPATH=tests;.&& python3 -m unittest discover -s tests -v`. Test UI cần Node.js; unittest tự chạy test này nếu có Node, thiếu sẽ báo skip. Gameplay/UI không cần Node.
+
+Bench cần Chrome/Chromium/Edge; tự tìm trình duyệt hoặc đặt `CHONOI_BROWSER` tới executable. Không tìm thấy thì trả mã 1, không tạo số liệu giả. Bench render thật 1280×720, làm nóng 3 giây; FPS phụ thuộc máy/cờ headless, xem [proof](docs/proof/phase-4/bench.md). Soak dùng bot tất định qua 10 ngày; CLI chơi/headless vẫn giới hạn 1–5 ngày. Chế độ tương phản chỉ ở client, không ảnh hưởng headless/JSONL. Chi tiết contract và starter: [STARTER](docs/STARTER.md).
+
+## Đóng gói bàn giao
+
+Integrator chạy trên commit phát hành sau khi tích hợp và gắn tag:
+
+```bash
+git archive --format=zip --prefix=chonoi-v1.0.0/ --output=chonoi-v1.0.0.zip phase-4
+```
+
+Đính ZIP vào GitHub Release `v1.0.0`; `phase-4` và tag phát hành phải cùng commit trên `main`. Không tạo ZIP từ nhánh chưa commit để tránh bỏ sót thay đổi. Giấy phép [MIT](LICENSE); nguồn tài sản và công cụ: [CREDITS](CREDITS.md).
 
 ## Tự do sáng tạo
 

@@ -22,6 +22,13 @@
   #panel button { font: inherit; color: #102824; background: #b8e4c6; border: 0; border-radius: 8px; padding: 8px 16px; margin: 12px 8px 0 0; cursor: pointer; }
   #panel button:focus-visible { outline: 3px solid #ffce66; outline-offset: 2px; }
   #panel button:disabled { opacity: .55; cursor: default; }
+  body.high-contrast { background: #000; color: #fff; }
+  body.high-contrast #screen { background: #000e; }
+  body.high-contrast #panel, body.high-contrast .fresh-item { background: #000; color: #fff; border: 3px solid #fff; }
+  body.high-contrast #panel h1, body.high-contrast .fresh-item.spoiled { color: #ffff00; }
+  body.high-contrast #panel button { background: #000; color: #ffff00; border: 3px solid #ffff00; }
+  body.high-contrast #panel button:focus-visible { outline: 3px solid #fff; }
+  body.high-contrast meter { accent-color: #ffff00; }
 </style>
 </head>
 <body>
@@ -42,6 +49,21 @@ const freshnessHud = document.getElementById("freshness-hud");
 let snap = null, offline = false;
 const phaseOf = state => state?.phase || state?.mode || "gather";
 const screenOf = state => state?.screen || "playing";
+const CONTRAST_KEY = "chonoi.highContrast";
+let highContrast = (() => {
+  const query = typeof location !== "undefined" && typeof URLSearchParams !== "undefined"
+    ? new URLSearchParams(location.search).get("contrast") : null;
+  if (query === "high" || query === "normal") return query === "high";
+  try { return localStorage.getItem(CONTRAST_KEY) === "high"; } catch (_) { return false; }
+})();
+function applyContrast() { document.body?.classList.toggle("high-contrast", highContrast); }
+function toggleContrast() {
+  highContrast = !highContrast;
+  try { localStorage.setItem(CONTRAST_KEY, highContrast ? "high" : "normal"); } catch (_) { /* storage có thể bị chặn */ }
+  applyContrast();
+}
+applyContrast();
+const lowWarning = (remaining, maximum) => Number.isFinite(remaining) && maximum > 0 && remaining < maximum * .25;
 
 // ---------- vào: phím ----------
 const down = new Set();
@@ -109,6 +131,9 @@ function keyName(event) { return event.key.toLowerCase(); }
 addEventListener("keydown", event => {
   const key = keyName(event);
   if (event.repeat || restarting) return;
+  if (key === "h" && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    event.preventDefault(); toggleContrast(); return;
+  }
   const screen = screenOf(snap);
   if (INTRO_SCREENS.has(screen) && !["tab", "shift", "control", "alt", "meta"].includes(key)
       && !event.ctrlKey && !event.altKey && !event.metaKey) {
@@ -207,7 +232,7 @@ function consumeEvents(events) {
   }
   messages = messages.slice(-3);
 }
-const kc = (k) => KIND_COLOR[k] || "#bbbbbb";
+const kc = (k) => highContrast ? "#ffff00" : KIND_COLOR[k] || "#bbbbbb";
 
 function fit() {
   const dpr = window.devicePixelRatio || 1;
@@ -218,12 +243,13 @@ function fit() {
 }
 function text(s, x, y, o = {}) {
   ctx.font = Math.max(18, o.size || 18) + "px system-ui, sans-serif";
-  ctx.fillStyle = o.color || "#e8eef2";
+  ctx.fillStyle = highContrast ? "#fff" : o.color || "#e8eef2";
   ctx.textAlign = o.align || "left";
   ctx.textBaseline = o.base || "alphabetic";
   const value = s == null ? "Chưa có dữ liệu" : String(s);
   const maxWidth = o.maxWidth || innerWidth - 28;
   // Không để Canvas bóp chữ nhỏ hơn cỡ HUD khi thiếu chỗ.
+  if (highContrast) { ctx.strokeStyle = "#000"; ctx.lineWidth = 4; ctx.strokeText(value, x, y, maxWidth); }
   if (ctx.measureText(value).width <= maxWidth) ctx.fillText(value, x, y);
   else {
     let end = value.length;
@@ -232,9 +258,10 @@ function text(s, x, y, o = {}) {
   }
 }
 function bar(x, y, w, h, frac, color, label) {
-  ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = color; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, frac)), h);
-  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
+  ctx.fillStyle = highContrast ? "#000" : "rgba(0,0,0,.45)"; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = highContrast ? "#ffff00" : color; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, frac)), h);
+  ctx.strokeStyle = highContrast ? "#fff" : "rgba(255,255,255,.5)"; ctx.lineWidth = highContrast ? 3 : 1;
+  ctx.strokeRect(x + .5, y + .5, w - 1, h - 1);
   if (label) text(label, x + w / 2, y + h - 4, { align: "center" });
 }
 function fmtTime(ticks) {
@@ -310,7 +337,7 @@ function updatePanel() {
   const screen = screenOf(snap);
   const shop = screen === "playing" && phaseOf(snap) === "shop";
   const view = snap.state === "paused" && screen === "playing" ? "pause" : shop ? "shop" : screen;
-  const key = JSON.stringify([view, snap.screen_id, view === "shop" ? [snap.upgrades, snap.money, messages.at(-1)] : null]);
+  const key = JSON.stringify([view, snap.screen_id, highContrast, view === "shop" ? [snap.upgrades, snap.money, messages.at(-1)] : null]);
   if (key === shownPanel) return;
   shownPanel = key;
   screenLayer.hidden = view === "playing";
@@ -384,6 +411,10 @@ function updatePanel() {
     button("Chơi lại", restart);
     button("Về menu", toMenu);
   }
+  if (["menu", "pause", "shop"].includes(view)) {
+    button(`Tương phản cao: ${highContrast ? "Bật" : "Tắt"} (H)`, toggleContrast);
+    panel.children[panel.children.length - 1].setAttribute("aria-pressed", String(highContrast));
+  }
   if (view !== "shop") panel.querySelector("button:not(:disabled)")?.focus();
 }
 function eventLog(w, h) {
@@ -416,26 +447,26 @@ function drawGather(w, h) {
   const ox = (w - s * (X + 4)) / 2 + 2 * s, oy = top + SKY * s;
   const sx = (x) => ox + x * s, sy = (d) => oy + d * s;
   // trời + nước
-  ctx.fillStyle = "#cfeaf5"; ctx.fillRect(0, top, w, SKY * s);
+  ctx.fillStyle = highContrast ? "#000" : "#cfeaf5"; ctx.fillRect(0, top, w, SKY * s);
   const g = ctx.createLinearGradient(0, oy, 0, sy(D));
   g.addColorStop(0, "#49b0dc"); g.addColorStop(1, "#08243f");
-  ctx.fillStyle = g; ctx.fillRect(sx(0), oy, X * s, D * s);
+  ctx.fillStyle = highContrast ? "#000" : g; ctx.fillRect(sx(0), oy, X * s, D * s);
   ctx.strokeStyle = "#e9f7ff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx(0), oy); ctx.lineTo(sx(X), oy); ctx.stroke();
   // vạch độ sâu
   for (let d = 5; d <= D; d += 5) {
-    ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx(0), sy(d)); ctx.lineTo(sx(X), sy(d)); ctx.stroke();
+    ctx.strokeStyle = highContrast ? "#fff" : "rgba(255,255,255,.08)"; ctx.lineWidth = highContrast ? 3 : 1; ctx.beginPath(); ctx.moveTo(sx(0), sy(d)); ctx.lineTo(sx(X), sy(d)); ctx.stroke();
     text(d + " m", sx(0) + 4, sy(d) - 2, { size: 10, color: "rgba(255,255,255,.4)" });
   }
   // bến
   const dp = meta.dock_pos || [2, 0], dr = meta.dock_radius || 3;
-  ctx.fillStyle = "#8d6e4b"; ctx.fillRect(sx(dp[0] - 1.5), sy(-0.7), 3 * s, 0.9 * s);
-  ctx.fillStyle = "#b9503a"; ctx.beginPath(); ctx.moveTo(sx(dp[0] - 1.8), sy(-0.7)); ctx.lineTo(sx(dp[0]), sy(-2.4)); ctx.lineTo(sx(dp[0] + 1.8), sy(-0.7)); ctx.fill();
+  ctx.fillStyle = highContrast ? "#fff" : "#8d6e4b"; ctx.fillRect(sx(dp[0] - 1.5), sy(-0.7), 3 * s, 0.9 * s);
+  ctx.fillStyle = highContrast ? "#ffff00" : "#b9503a"; ctx.beginPath(); ctx.moveTo(sx(dp[0] - 1.8), sy(-0.7)); ctx.lineTo(sx(dp[0]), sy(-2.4)); ctx.lineTo(sx(dp[0] + 1.8), sy(-0.7)); ctx.fill();
   ctx.strokeStyle = "rgba(255,230,150,.7)"; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(sx(dp[0]), sy(dp[1]), dr * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
   text("Bến (E)", sx(dp[0]) + 16, sy(-2.8), { align: "center", color: "#5a3a22" });
   // nút hái
   (snap.nodes || []).forEach((n) => {
     const ready = n.ready !== false;
-    ctx.globalAlpha = ready ? 1 : 0.35;
+    ctx.globalAlpha = highContrast || ready ? 1 : 0.35;
     ctx.fillStyle = kc(n.kind); ctx.beginPath(); ctx.ellipse(sx(n.pos[0]), sy(n.pos[1]) - 0.1 * s, 0.9 * s, 0.4 * s, 0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
     text(n.id, sx(n.pos[0]), sy(n.pos[1]) - 0.7 * s, { size: 10, align: "center", color: "#234" });
@@ -454,7 +485,7 @@ function drawGather(w, h) {
   const p = snap.player;
   const monsters = snap.monsters || [];
   for (const m of monsters) {
-    ctx.fillStyle = "#61397e"; ctx.beginPath();
+    ctx.fillStyle = highContrast ? "#fff" : "#61397e"; ctx.beginPath();
     ctx.ellipse(sx(m.pos[0]), sy(m.pos[1]), 1.25 * s, .48 * s, 0, 0, Math.PI * 2); ctx.fill();
     text(m.id, sx(m.pos[0]), sy(m.pos[1]) - s, { align: "center" });
   }
@@ -464,8 +495,8 @@ function drawGather(w, h) {
     return species && p.pos[1] >= species.depths[0] && distance(p.pos, m.pos) <= species.detect_radius;
   });
   if (nearby) {
-    ctx.strokeStyle = "#bd76ff"; ctx.lineWidth = 6; ctx.strokeRect(3, 3, w - 6, h - 6);
-    text("Thủy quái!", w - 20, 28, { align: "right", color: "#e4b5ff", size: 22 });
+    ctx.strokeStyle = highContrast ? "#ffff00" : "#bd76ff"; ctx.lineWidth = highContrast ? 8 : 6; ctx.strokeRect(3, 3, w - 6, h - 6);
+    text("⚠ Thủy quái!", w - 20, 58, { align: "right", color: "#e4b5ff", size: 22 });
   }
   if (p) {
     const px = sx(p.pos[0]), py = sy(p.pos[1]);
@@ -473,7 +504,7 @@ function drawGather(w, h) {
     if (meta.catch_radius && underwater) { ctx.strokeStyle = "rgba(255,255,255,.25)"; ctx.beginPath(); ctx.arc(px, py, meta.catch_radius * s, 0, Math.PI * 2); ctx.stroke(); }
     if (meta.interact_radius && !underwater) { ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.beginPath(); ctx.arc(px, py, meta.interact_radius * s, 0, Math.PI * 2); ctx.stroke(); }
     if (!(p.invuln_ticks > 0 && Math.floor((snap.sim_tick ?? snap.tick) / 5) % 2)) {
-      ctx.fillStyle = "#ff8a3d"; ctx.beginPath(); ctx.arc(px, py, 0.6 * s, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = highContrast ? "#ffff00" : "#ff8a3d"; ctx.beginPath(); ctx.arc(px, py, 0.6 * s, 0, Math.PI * 2); ctx.fill();
       const a = ((p.heading_deg || 0) * Math.PI) / 180;
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a) * 0.9 * s, py + Math.sin(a) * 0.9 * s); ctx.stroke();
     }
@@ -482,13 +513,15 @@ function drawGather(w, h) {
   text((snap.day ? `Ngày ${snap.day} · ` : "") + fmtTime(snap.time_left_ticks), 14, 28,
     { size: 20, color: snap.time_left_ticks <= 30 * 60 ? "#ff8a80" : undefined });
   if (p && p.oxygen_ticks !== undefined && p.oxygen_max_ticks) {
-    const low = p.oxygen_ticks < p.oxygen_max_ticks * 0.25;
+    const low = lowWarning(p.oxygen_ticks, p.oxygen_max_ticks);
     bar(185, 8, 220, 25, p.oxygen_ticks / p.oxygen_max_ticks, low ? "#b12434" : "#256b86", "Oxy " + Math.ceil(p.oxygen_ticks / 60) + "s");
   }
   if (p && p.hp !== undefined && p.hp_max) {
     text(`♥ Máu ${p.hp}/${p.hp_max}`, 425, 28, { size: 22, color: "#ff8b9d" });
   }
   if (p?.oxygen_ticks === 0) text("Hết hơi!", 585, 28, { color: "#ff8a80", size: 22 });
+  else if (lowWarning(p?.oxygen_ticks, p?.oxygen_max_ticks))
+    text("⚠ Sắp hết hơi!", 585, 28, { color: "#ff8a80", size: 22 });
   if (p?.pos) {
     const cooldown = p.catch_cd_ticks > 0 ? (p.catch_cd_ticks / 60).toFixed(1) + "s" : "sẵn sàng";
     text(`Độ sâu ${p.pos[1].toFixed(1)} m · Bắt: ${cooldown}`, 14, 55);
@@ -516,7 +549,7 @@ function drawGather(w, h) {
     }
     text(`Giỏ ${snap.hold.length}/${cap} · ${itemList(counts)}`, 14, y0 + sz + 24, { color: "#cfd8dc" });
   }
-  text("WASD / mũi tên bơi · E hái / cập bến · Space bắt · Esc/P tạm dừng", 14, h - 14, { color: "#b6ccd7" });
+  text("WASD / mũi tên bơi · E hái / cập bến · Space bắt · Esc/P tạm dừng · H tương phản", 14, h - 14, { color: "#b6ccd7" });
 }
 
 // ----- cảnh QUÁN: nhìn từ trên xuống, x sang phải, z lên (bắc) -----
@@ -528,12 +561,12 @@ function drawQuan(w, h) {
   const s = Math.max(1, Math.min((leftW - 28) / X, (h - top - bottom) / Z));
   const ox = (leftW - s * X) / 2, oy = top;
   const sx = (x) => ox + x * s, sy = (z) => oy + (Z - z) * s;
-  ctx.fillStyle = "#c9a36b"; ctx.fillRect(sx(0), sy(Z), X * s, Z * s);
-  ctx.strokeStyle = "#6b4a2b"; ctx.lineWidth = 4; ctx.strokeRect(sx(0), sy(Z), X * s, Z * s);
+  ctx.fillStyle = highContrast ? "#000" : "#c9a36b"; ctx.fillRect(sx(0), sy(Z), X * s, Z * s);
+  ctx.strokeStyle = highContrast ? "#fff" : "#6b4a2b"; ctx.lineWidth = 4; ctx.strokeRect(sx(0), sy(Z), X * s, Z * s);
   // bếp
   (snap.stoves || []).forEach((st) => {
     const col = st.state === "cooking" ? "#e8892b" : st.state === "ready" ? "#6fbf5a" : "#6d6d72";
-    ctx.fillStyle = col; ctx.fillRect(sx(st.pos[0]) - 0.8 * s, sy(st.pos[1]) - 0.8 * s, 1.6 * s, 1.6 * s);
+    ctx.fillStyle = highContrast ? "#ffff00" : col; ctx.fillRect(sx(st.pos[0]) - 0.8 * s, sy(st.pos[1]) - 0.8 * s, 1.6 * s, 1.6 * s);
     text(st.id, sx(st.pos[0]), sy(st.pos[1]) + 6, { align: "center", color: "#111" });
   });
   // bàn + khách
@@ -541,15 +574,17 @@ function drawQuan(w, h) {
   const byTable = {};
   (snap.customers || []).forEach((c) => (byTable[c.table_id] = c));
   (snap.tables || []).forEach((tb) => {
-    ctx.fillStyle = "#8a5a2e"; ctx.beginPath(); ctx.arc(sx(tb.pos[0]), sy(tb.pos[1]), 0.9 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = highContrast ? "#ffff00" : "#8a5a2e"; ctx.beginPath(); ctx.arc(sx(tb.pos[0]), sy(tb.pos[1]), 0.9 * s, 0, Math.PI * 2); ctx.fill();
     text(tb.id, sx(tb.pos[0]), sy(tb.pos[1]) + 4, { size: 12, align: "center", color: "#fff" });
     const c = byTable[tb.id];
     if (c) {
       const cx = sx(tb.pos[0]), cy = sy(tb.pos[1]) - 1.5 * s;
-      ctx.fillStyle = c.state === "eating" ? "#7bc67b" : "#f4b6c2"; ctx.beginPath(); ctx.arc(cx, cy, 0.55 * s, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = highContrast ? "#fff" : c.state === "eating" ? "#7bc67b" : "#f4b6c2"; ctx.beginPath(); ctx.arc(cx, cy, 0.55 * s, 0, Math.PI * 2); ctx.fill();
       if (c.state !== "eating" && c.patience_ticks_left !== undefined) {
         const fraction = c.patience_ticks_left / patMax;
         bar(cx - 0.65 * s, cy + 0.65 * s, 1.3 * s, 6, fraction, fraction < .25 ? "#b32a36" : "#36844e");
+        if (lowWarning(c.patience_ticks_left, patMax))
+          text("⚠ Sắp giận!", cx, cy - .7 * s, { align: "center", color: "#ff8a80" });
       }
     }
   });
@@ -558,7 +593,7 @@ function drawQuan(w, h) {
   if (p) {
     const px = sx(p.pos[0]), py = sy(p.pos[1]);
     if (meta.interact_radius) { ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(px, py, meta.interact_radius * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
-    ctx.fillStyle = "#ff8a3d"; ctx.beginPath(); ctx.arc(px, py, 0.5 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = highContrast ? "#ffff00" : "#ff8a3d"; ctx.beginPath(); ctx.arc(px, py, 0.5 * s, 0, Math.PI * 2); ctx.fill();
     if (snap.hand) {
       const hand = dishName(snap.hand);
       text("🍲 " + hand, px, py - 0.8 * s, { size: 11, align: "center", color: "#2a1a0a" });
@@ -592,7 +627,7 @@ function drawQuan(w, h) {
     if (c) text(dishName(c.dish_id), x, y + 22, { maxWidth: width });
     y += 52;
   }
-  text("WASD / mũi tên đi · E tương tác bếp / bàn · Esc/P tạm dừng", 14, h - 14, { color: "#b6ccd7" });
+  text("WASD / mũi tên đi · E tương tác bếp / bàn · Esc/P tạm dừng · H tương phản", 14, h - 14, { color: "#b6ccd7" });
 }
 
 // Benchmark (TICKET-04): chỉ bật khi URL có ?bench=<giây>[&warmup=<giây>] — do `python3 -m chonoi.bench` mở.
@@ -624,7 +659,7 @@ function benchTick(t) {
 function frame() {
   requestAnimationFrame(frame);  // đặt trước để lỗi vẽ không làm dừng vòng lặp
   const [w, h] = fit();
-  ctx.fillStyle = "#10161c"; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = highContrast ? "#000" : "#10161c"; ctx.fillRect(0, 0, w, h);
   if (snap) {
     const phase = phaseOf(snap);
     if (screenOf(snap) !== "menu") {
