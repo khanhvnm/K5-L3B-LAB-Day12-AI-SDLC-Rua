@@ -35,3 +35,7 @@ python3 -m chonoi.headless --mode quan --seed 42 --inventory "$proof/inventory.j
 ## Giới hạn bằng chứng
 
 Output này xác nhận contract/test suite và bàn giao kho. Nó không kiểm chứng trực tiếp luật oxy/ngạt/ngất, hái/mọc lại, bắt cá/hồi chiêu/giỏ đầy hoặc HUD/UI; các mục đó vẫn cần bằng chứng riêng.
+
+## Bổ sung kiểm chứng Gather
+
+Phần giới hạn trên mô tả trạng thái tại thời điểm ghi smoke ban đầu. Sau đó, Khánh chạy bộ test headless trực tiếp cho các luật Gather và toàn bộ suite; kết quả mới nhất là **10/10 test Gather** và **61/61 test toàn bộ**, đều pass. Chi tiết: [gather-rules-tests.md](gather-rules-tests.md). UI/HUD vẫn chưa được kiểm chứng trực tiếp.
