@@ -1,6 +1,6 @@
 # Bằng chứng UI Phase 1 — Phạm Duy Thành
 
-Ngày kiểm tra: 2026-11-21. Nhánh: `p1/ui`. Chưa stage/commit/push.
+Ngày kiểm tra ban đầu: 2026-11-21. Tích hợp vào `main` qua PR #3 (`e8c9541`); trạng thái hiện tại đã được rà lại trên `main` tại `fde0040`.
 
 ## Phạm vi
 
@@ -37,3 +37,10 @@ git diff --check
 - Không đánh dấu toàn bộ Phase 1 đạt hoặc tự đặt mã AC khi repo chưa có PRD đầy đủ.
 - Danh sách TEAM có 3 người đã được chấp thuận theo kế hoạch nhóm; script check_team vẫn yêu cầu 4–6. Đây là việc của Integrator, không sửa checker trong nhánh UI.
 - Quy tắc thông báo thư mục và dọn thư mục tạm được ghi trong AGENTS.md repo và hướng dẫn cá nhân ~/.codex/AGENTS.md.
+
+## Rà lại sau khi tích hợp vào main
+
+- Chạy lại `node --test tests/test_ui.js` trên `main`: **7/7 pass**.
+- Đã kiểm tra các thay đổi được tích hợp ở `chonoi/web/index.html`; bộ test bao phủ xử lý phím, hai trục mode quán/gather, hiển thị tên món và thông báo, HUD khi snapshot thiếu trường tùy chọn, lỗi HTTP và thứ tự restart/input.
+- Chưa chạy lại toàn bộ Python unittest trong môi trường rà soát này vì PowerShell không tìm thấy lệnh `python3`. Kết quả toàn bộ 61/61 được ghi trước khi UI merge; cần chạy lại sau merge trên máy có Python.
+- Smoke Chrome headless ở hai kích thước cho cả hai mode đã được ghi ở phần trên. Đây là kiểm tra bố cục/hiển thị ban đầu; không thay thế lượt chơi tay qua toàn bộ gameplay.

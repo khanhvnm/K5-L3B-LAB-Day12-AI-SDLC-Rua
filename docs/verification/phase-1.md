@@ -4,7 +4,7 @@
 
 Khánh chạy bổ sung `tests/test_gather_rules.py`: **10/10 đạt** (2.301s). Sau đó chạy toàn bộ suite: **61/61 đạt** (33.568s). Kết quả chi tiết và phạm vi các case được ghi tại [gather-rules-tests.md](../proof/phase-1/gather-rules-tests.md).
 
-Trạng thái được cập nhật: **G-P1-02, G-P1-03 và G-P1-04 đạt trong phạm vi các case headless này**. Các kiểm tra bao gồm oxy cạn/hồi oxy, ngạt và ngất làm rơi giỏ LIFO, hái cây/chọn nút/nút mọc lại/giỏ đầy, bắt cá/hồi chiêu/giỏ đầy. **UI/HUD vẫn chưa được kiểm chứng bằng lượt chơi trực tiếp.**
+Trạng thái được cập nhật: **G-P1-02, G-P1-03 và G-P1-04 đạt trong phạm vi các case headless này**. Các kiểm tra bao gồm oxy cạn/hồi oxy, ngạt và ngất làm rơi giỏ LIFO, hái cây/chọn nút/nút mọc lại/giỏ đầy, bắt cá/hồi chiêu/giỏ đầy.
 
 | AC | Cách kiểm chứng | Bằng chứng (link `docs/proof/phase-1/...`) | Kết quả |
 |---|---|---|---|
@@ -14,14 +14,14 @@ Trạng thái được cập nhật: **G-P1-02, G-P1-03 và G-P1-04 đạt trong
 | G-P1-02 — Oxy, lặn/nổi, ngạt, mất Máu, ngất và giỏ LIFO khi ngất | `tests/test_gather_rules.py`: oxy cạn, hồi oxy, ngạt/ngất, event lost theo LIFO và inventory rỗng | [gather-rules-tests.md](../proof/phase-1/gather-rules-tests.md) | Đạt trong phạm vi các case headless đã chạy |
 | G-P1-03 — Hái cây, chọn nút, giỏ đầy và nút mọc lại | `tests/test_gather_rules.py`: chọn nút gần nhất/tie ID, hái, mọc lại rồi hái cùng tick, giỏ đầy giữ nguyên nút | [gather-rules-tests.md](../proof/phase-1/gather-rules-tests.md) | Đạt trong phạm vi các case headless đã chạy |
 | G-P1-04 — Bắt cá, chọn đàn, giỏ đầy và hồi chiêu | `tests/test_gather_rules.py`: bắt cá gần nhất, cooldown, giỏ đầy giữ cá và không kích hoạt cooldown | [gather-rules-tests.md](../proof/phase-1/gather-rules-tests.md) | Đạt trong phạm vi các case headless đã chạy |
-| UI-P1-01 — Điều khiển và HUD tối thiểu cho cả hai buổi | Chơi thử UI sau khi tích hợp module UI | Chưa có bằng chứng | Chưa kiểm chứng |
+| UI-P1-01 — Điều khiển và HUD tối thiểu cho cả hai buổi | `node --test tests/test_ui.js` (7/7 pass); Chrome headless smoke tại 800×600 và 1280×720 cho cả hai mode | [ui-p1.md](../proof/ui-p1.md) | Đạt cho UI/HUD tối thiểu và các luồng input đã kiểm tra; gameplay đầy đủ chưa được xác nhận bằng chơi tay |
 
 ## Đánh giá ngắn
 
-- **Đạt:** toàn bộ suite hiện tại pass 61/61; smoke chứng minh `gather` ghi inventory khi cập bến và `quan` đọc đúng stock. Ba nhóm luật Gather G-P1-02/03/04 có test headless trực tiếp.
-- **Chưa kiểm chứng:** UI/HUD chưa có bằng chứng từ lượt chơi trực tiếp.
-- **Điều chỉnh tiếp:** hoàn thiện và kiểm tra UI/HUD theo PRD-0; sau đó cập nhật bằng chứng trước khi kết luận DoD hoặc gắn tag `phase-1`.
-Phần UI của Phạm Duy Thành: xem [bằng chứng UI](../proof/ui-p1.md). Test fixture UI và smoke giao diện ban đầu đã đạt; gameplay nâng cao chờ hai chủ module tích hợp. Chưa có đầy đủ mã AC từ PRD để chốt ma trận toàn phase.
+- **Đạt:** test suite đã pass 61/61 trước khi merge UI; Gather có test headless trực tiếp; UI/HUD có 7 test Node pass và smoke Chrome headless ở hai kích thước cho cả hai mode.
+- **Còn cần xác nhận:** chạy lại toàn bộ Python unittest sau merge UI và chơi thử gameplay thực tế cho các tương tác quan trọng. Môi trường kiểm tra hiện tại không có `python3`, nên chưa xác nhận được suite tổng hợp sau merge.
+- **Trước khi kết luận DoD/gắn tag:** đối chiếu toàn bộ PRD-0/phase-1 acceptance criteria và xác nhận kết quả full-suite mới nhất.
+Phần UI của Phạm Duy Thành: xem [bằng chứng UI](../proof/ui-p1.md). UI đã được tích hợp và có test fixture/smoke giao diện; gameplay thực tế chưa được kiểm tra tay qua các tương tác chính. Ma trận hiện chưa ánh xạ đầy đủ mã AC từ PRD-0, nên chưa đủ cơ sở kết luận DoD toàn phase.
 
 - Yêu cầu nào đạt / chưa đạt:
 - Điều cần chỉnh cho phase sau:
