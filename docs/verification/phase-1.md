@@ -21,3 +21,7 @@ Trạng thái được cập nhật: **G-P1-02, G-P1-03 và G-P1-04 đạt trong
 - **Đạt:** toàn bộ suite hiện tại pass 61/61; smoke chứng minh `gather` ghi inventory khi cập bến và `quan` đọc đúng stock. Ba nhóm luật Gather G-P1-02/03/04 có test headless trực tiếp.
 - **Chưa kiểm chứng:** UI/HUD chưa có bằng chứng từ lượt chơi trực tiếp.
 - **Điều chỉnh tiếp:** hoàn thiện và kiểm tra UI/HUD theo PRD-0; sau đó cập nhật bằng chứng trước khi kết luận DoD hoặc gắn tag `phase-1`.
+Phần UI của Phạm Duy Thành: xem [bằng chứng UI](../proof/ui-p1.md). Test fixture UI và smoke giao diện ban đầu đã đạt; gameplay nâng cao chờ hai chủ module tích hợp. Chưa có đầy đủ mã AC từ PRD để chốt ma trận toàn phase.
+
+- Yêu cầu nào đạt / chưa đạt:
+- Điều cần chỉnh cho phase sau:
