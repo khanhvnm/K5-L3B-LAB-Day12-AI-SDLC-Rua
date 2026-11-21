@@ -1,5 +1,7 @@
 # Bằng chứng lát Day/Pause/UI — TICKET-02
 
+> **Lịch sử:** đoạn đầu ghi lúc lát D chạy trên manifest v1.0 với Shop/kế hoạch giả lập, giữ lại để truy vết. Kết quả hiện hành ở mục "Kiểm lại khi ghép main v1.1" bên dưới và trong [day-smoke.md](day-smoke.md).
+
 Phạm vi: working tree `p2/day-ui` trên nền `06fac33`. Gather và Quán chạy từ repo; kế hoạch ngày và Shop chỉ là fixture trong `tests/test_day.py`. Branch vẫn dùng manifest v1.0.
 
 ```powershell

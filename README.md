@@ -27,6 +27,11 @@ Game cần chế độ **headless** theo Test Contract (`python3 -m chonoi.headl
 
 Ngoài phần đề yêu cầu, nhóm được **thêm** nhân vật, loài cá/cây, sinh vật, món, bản đồ, cơ chế, câu chuyện, đồ họa, âm nhạc… với ba điều kiện: **không phá phần cố định** (tắt ở headless), ghi mục **"Sáng tạo của nhóm"** trong README của nhóm, và **làm lõi đúng trước**.
 
+## Sáng tạo và mở rộng của nhóm Rua
+
+- **Mở rộng (Ticket-02 mục 3):** chưa làm mục nào — nhóm 3 người không bắt buộc; `game.contract.json` không khai `extensions`.
+- **Sáng tạo của nhóm:** chưa có. Mọi bổ sung sau này phải tắt ở headless và kèm bằng chứng lõi vẫn đúng.
+
 ## Lịch 3 giờ
 
 | Mốc | Phase | Hạn tag |
