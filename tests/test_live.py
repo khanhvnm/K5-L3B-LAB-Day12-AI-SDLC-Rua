@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 
 from chonoi.contract import load_contract
-from chonoi.live import LiveGame, LiveServer
+from chonoi.live import LiveGame, LiveServer, _available_stock
 
 
 def _get(url):
@@ -27,6 +27,18 @@ def _post(url, obj):
 
 
 class LiveServerTest(unittest.TestCase):
+    def test_available_stock_excludes_spoiled_and_reserved_ids(self):
+        snapshot = {
+            "stock": [
+                {"id": "I1", "kind": "ca_loc", "fresh": 99},
+                {"id": "I2", "kind": "ca_loc", "fresh": 29.995833333333334},
+                {"id": "I3", "kind": "ca_loc", "fresh": 30},
+            ],
+            "customers": [{"reserved": ["I1"]}],
+        }
+        self.assertEqual(_available_stock(snapshot, {"spoiled_below": 30}), {"ca_loc": 1})
+        self.assertEqual(_available_stock(snapshot, {"spoiled_below": 31}), {})
+
     def test_state_input_and_clean_stop(self):
         tuning = load_contract()["tuning"]
         server = LiveServer(LiveGame("gather", tuning, {}, 1), port=0)  # cổng ngẫu nhiên

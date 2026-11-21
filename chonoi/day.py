@@ -77,8 +77,15 @@ class DaySession:
         self.day_start_earned = self.earned
         self.day_start_reputation = self.reputation
         self.statistics = {"served": 0, "left": 0, "tips": 0}
-        self.delivered = {}
+        self.delivered = [] if "freshness" in self.tuning else {}
         fixture = copy.deepcopy(self.scenario.get("gather", {}))
+        if "freshness" in self.tuning:
+            for item in fixture.get("hold", []):
+                if self.day == 1:
+                    self.ids.reserve(item["id"])
+                else:
+                    # Mỗi Ngày tạo cá thể mới, giữ độ tươi và thứ tự LIFO của mẫu.
+                    item["id"] = self.ids.new("I")
         # Fixture vẫn được giữ; khi không khai oxy/Máu thì sim dùng mức đầy theo cấp.
         self.sim = GatherSim(self.phase_tuning, fixture, self.streams, self.ids, day=self.day)
         self._carry()
@@ -119,6 +126,7 @@ class DaySession:
         if not self.sim.done:
             return rows
         if old_phase == "gather":
+            # Cùng bàn giao kho đã chốt ở gather_end; không bước Quán trong tick này.
             inventory = self.sim.inventory_items()
             self.delivered = copy.deepcopy(inventory)
             planned = self.plan["dishes"]
@@ -131,7 +139,8 @@ class DaySession:
             self._carry()
             self.phase = "quan"
         elif old_phase == "quan":
-            self.sim = ShopSim(self.tuning, self.money, self.earned, self.upgrades, stock=self.sim.stock, day=self.day)
+            stock = self.sim.snapshot()["stock"]
+            self.sim = ShopSim(self.tuning, self.money, self.earned, self.upgrades, stock=stock, day=self.day)
             self.phase = "shop"
         else:
             self.days_completed += 1

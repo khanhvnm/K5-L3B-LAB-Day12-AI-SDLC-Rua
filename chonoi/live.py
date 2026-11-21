@@ -36,6 +36,24 @@ MAX_BODY = 4096
 RECENT_EVENTS = 40
 
 
+def _available_stock(snapshot, freshness):
+    stock = snapshot["stock"]
+    customers = snapshot["customers"]
+    if isinstance(stock, list):
+        reserved_ids = {item_id for c in customers for item_id in c.get("reserved", [])}
+        counts = {}
+        for item in stock:
+            if item["id"] not in reserved_ids and item["fresh"] >= freshness["spoiled_below"]:
+                kind = item["kind"]
+                counts[kind] = counts.get(kind, 0) + 1
+        return counts
+    available = dict(stock)
+    for customer in customers:
+        for kind, amount in customer.get("reserved", {}).items():
+            available[kind] = available.get(kind, 0) - amount
+    return {kind: amount for kind, amount in available.items() if amount > 0}
+
+
 class LiveGame:
     """Một lượt chơi + luồng nền bước 60 tick/s. Mọi truy cập trạng thái đi qua khóa."""
 
@@ -125,6 +143,9 @@ class LiveGame:
             phase_tuning = s.phase_tuning if self.mode == "day" and phase == "gather" else self.tuning
             snap["meta"] = phase_tuning[phase]
             snap["menu"] = self.tuning["menu"]
+            freshness = self.tuning.get("freshness")
+            if freshness is not None:
+                snap["freshness"] = freshness
             snap["screen"] = self.screen
             snap["screen_id"] = self.screen_id
             snap["events"] = list(self.events)
@@ -134,11 +155,7 @@ class LiveGame:
             if self.mode == "day":
                 snap.update(s.browser_details())
             if phase == "quan":
-                stock = dict(snap["stock"])
-                for customer in snap["customers"]:
-                    for kind, amount in customer.get("reserved", {}).items():
-                        stock[kind] = stock.get(kind, 0) - amount
-                snap["available_stock"] = {kind: amount for kind, amount in stock.items() if amount > 0}
+                snap["available_stock"] = _available_stock(snap, freshness)
                 snap["shift_earned"] = s.sim.shift_earned
             return json.dumps(snap, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
