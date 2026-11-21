@@ -70,7 +70,9 @@ class Snapshot(unittest.TestCase):
             self.assertIsNone(s["hand"])
             self.assertEqual(set(s["stoves"][0]), {"id", "pos", "state", "dish", "cook_ticks_left", "ready_ticks"})
             self.assertEqual(s["stoves"][0]["state"], "idle")
-            self.assertEqual(s["tables"], [{"id": "T1", "pos": TABLE, "customer_id": None}])
+            # v1.1: 4 bàn theo số chuẩn (trước đây preset chỉ có T1)
+            self.assertEqual(s["tables"], [{"id": t["id"], "pos": [float(c) for c in t["pos"]], "customer_id": None}
+                                           for t in Q["tables"]])
             self.assertEqual(s["customers"], [])
             self.assertEqual((s["money"], s["earned"], s["reputation"]), (0, 0, Q["reputation_initial"]))
 
@@ -98,9 +100,13 @@ class Customers(unittest.TestCase):
             self.assertEqual(snapshots(rows)[-1]["customers"], [])
 
     def test_het_ban_thi_bo_luot(self):
+        # v1.1: 4 bàn -> lấp đầy bằng khách đang ăn rồi mới tới lượt đầu; hết bàn thì bỏ lượt, không phát no_dish
         with Workdir() as w:
-            rows = run_quan(w, {"stock": {"ca_loc": 5}}, FIRST + INTERVAL)
-            self.assertEqual(len(ev(rows, "customer_arrived")), 1)
+            full = [{"id": f"C{i}", "table_id": t["id"], "dish_id": "ca_loc_nuong_trui", "state": "eating",
+                     "eat_ticks_left": 500, "order_status": "served", "base_price": 60, "tip": 0}
+                    for i, t in enumerate(Q["tables"], start=1)]
+            rows = run_quan(w, {"stock": {"ca_loc": 5}, "customers": full}, FIRST)
+            self.assertEqual(ev(rows, "customer_arrived"), [])
             self.assertEqual(ev(rows, "no_dish"), [])
 
     def test_khach_roi_nha_phan_giu_cho_khach_sau(self):
@@ -115,9 +121,10 @@ class Customers(unittest.TestCase):
                              [(FIRST, {"order_id": "C2", "table_id": "T1", "dish_id": "ca_loc_nuong_trui"})])
 
     def test_chon_mon_deu_theo_seed_va_tat_dinh(self):
-        stock = {"ca_loc": 9, "ca_linh": 9, "bong_dien_dien": 9, "bong_sung": 9}
+        # v1.1: thực đơn 6 món, 6 nguyên liệu -> kho đủ cả 6 và quét nhiều seed hơn
+        stock = {k: 9 for k in ("ca_loc", "ca_linh", "ca_keo", "bong_dien_dien", "bong_sung", "keo_neo")}
         seen = set()
-        for seed in range(1, 25):
+        for seed in range(1, 81):
             with Workdir() as w:
                 a = ev(run_quan(w, {"stock": stock}, FIRST, seed=seed), "customer_arrived")
                 b = ev(run_quan(w, {"stock": stock}, FIRST, seed=seed), "customer_arrived")
