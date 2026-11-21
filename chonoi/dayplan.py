@@ -81,7 +81,8 @@ def resolve_day_plan(tuning: dict, overrides=None) -> list:
 
 
 def plan_for_day(plans: list, day: int) -> dict:
-    return plans[day - 1]
+    """Kế hoạch của Ngày `day` (đếm từ 1). Soak v1.3 (Ticket-04 §2): D1–D5 lặp ở Ngày 6–10, 11–15, …"""
+    return plans[(day - 1) % len(plans)]
 
 
 def day_plan_event(plan: dict):

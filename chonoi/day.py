@@ -42,9 +42,10 @@ def gather_tuning(tuning, upgrades):
 
 
 class DaySession:
-    def __init__(self, tuning, scenario, seed, days=1):
-        if type(days) is not int or not 1 <= days <= MAX_DAYS:
-            raise BadInput(f"--days phải trong [1,{MAX_DAYS}]")
+    def __init__(self, tuning, scenario, seed, days=1, max_days=MAX_DAYS):
+        # max_days: CLI headless giữ [1, 5]; soak (chonoi/soak.py, Ticket-04 §2) chạy 10 Ngày, kế hoạch lặp lại.
+        if type(days) is not int or not 1 <= days <= max_days:
+            raise BadInput(f"--days phải trong [1,{max_days}]")
         from .scenario import validate_day_scenario
         self.plans = validate_day_scenario(scenario, tuning)
         self.tuning, self.scenario = copy.deepcopy(tuning), copy.deepcopy(scenario)
