@@ -69,8 +69,8 @@ class Snapshot(unittest.TestCase):
             self.assertEqual(s["stock"], {"ca_loc": 1})
             self.assertIsNone(s["hand"])
             self.assertEqual(set(s["stoves"][0]), {"id", "pos", "state", "dish", "cook_ticks_left", "ready_ticks"})
-            self.assertEqual(s["stoves"][0]["state"], "idle")
-            self.assertEqual(s["tables"], [{"id": "T1", "pos": TABLE, "customer_id": None}])
+            self.assertEqual([(st["id"], st["state"]) for st in s["stoves"]], [(st["id"], "idle") for st in Q["stoves"]])
+            self.assertEqual(s["tables"], [{"id": tb["id"], "pos": tb["pos"], "customer_id": None} for tb in Q["tables"]])
             self.assertEqual(s["customers"], [])
             self.assertEqual((s["money"], s["earned"], s["reputation"]), (0, 0, Q["reputation_initial"]))
 
@@ -98,10 +98,39 @@ class Customers(unittest.TestCase):
             self.assertEqual(snapshots(rows)[-1]["customers"], [])
 
     def test_het_ban_thi_bo_luot(self):
+        """Mọi bàn trừ bàn đầu đã có khách fixture: lượt đầu vào bàn đầu, lượt sau hết bàn thì bỏ lượt."""
+        others = [{"id": f"K{i}", "table_id": tb["id"], "dish_id": "ca_loc_nuong_trui"}
+                  for i, tb in enumerate(Q["tables"][1:], start=1)]
         with Workdir() as w:
-            rows = run_quan(w, {"stock": {"ca_loc": 5}}, FIRST + INTERVAL)
-            self.assertEqual(len(ev(rows, "customer_arrived")), 1)
+            rows = run_quan(w, {"stock": {"ca_loc": len(others) + 5}, "customers": others}, FIRST + INTERVAL)
+            self.assertEqual([d["table_id"] for _, d in ev(rows, "customer_arrived")], [Q["tables"][0]["id"]])
             self.assertEqual(ev(rows, "no_dish"), [])
+
+    def test_khach_vao_ban_trong_id_nho_nhat(self):
+        stock = {k: 9 for k in ("ca_loc", "ca_linh", "bong_dien_dien", "bong_sung", "ca_keo", "keo_neo")}
+        n = len(Q["tables"])
+        with Workdir() as w:
+            rows = run_quan(w, {"stock": stock}, FIRST + (n - 1) * INTERVAL)
+            got = [(t, d["table_id"]) for t, d in ev(rows, "customer_arrived")]
+            self.assertEqual(got, [(FIRST + i * INTERVAL, tb["id"]) for i, tb in enumerate(Q["tables"])])
+
+    def test_mon_moi_v11_va_nguyen_lieu_moi(self):
+        for stock, dish in (({"ca_keo": 2}, "ca_keo_nuong"),
+                            ({"ca_loc": 1, "bong_dien_dien": 1}, None),  # cá lóc nướng hoặc canh chua
+                            ({"ca_linh": 2, "ca_keo": 1, "keo_neo": 1, "bong_dien_dien": 1}, "lau_mam")):
+            with Workdir() as w:
+                inv = write_json(w.path("inv.json"), {"items": stock})
+                code, err = run_headless("--mode", "quan", "--seed", "3", "--ticks", str(FIRST), "--inventory", inv,
+                                         "--out", w.path("q.jsonl"))
+                self.assertEqual(code, 0, err)
+                rows = read_jsonl(w.path("q.jsonl"))
+                got = ev(rows, "customer_arrived")[0][1]["dish_id"]
+                if dish:
+                    self.assertEqual(got, dish, stock)
+                else:
+                    self.assertIn(got, ("ca_loc_nuong_trui", "canh_chua_ca_loc"))
+                c = snapshots(rows)[-1]["customers"][0]
+                self.assertEqual(c["reserved"], {k: MENU[got]["recipe"][k] for k in sorted(MENU[got]["recipe"])})
 
     def test_khach_roi_nha_phan_giu_cho_khach_sau(self):
         """C1 giữ con cá lóc duy nhất rồi bỏ đi -> phần giữ được nhả, khách mới (id nối tiếp C2) gọi lại được."""
@@ -115,9 +144,9 @@ class Customers(unittest.TestCase):
                              [(FIRST, {"order_id": "C2", "table_id": "T1", "dish_id": "ca_loc_nuong_trui"})])
 
     def test_chon_mon_deu_theo_seed_va_tat_dinh(self):
-        stock = {"ca_loc": 9, "ca_linh": 9, "bong_dien_dien": 9, "bong_sung": 9}
+        stock = {k: 9 for k in ("ca_loc", "ca_linh", "bong_dien_dien", "bong_sung", "ca_keo", "keo_neo")}
         seen = set()
-        for seed in range(1, 25):
+        for seed in range(1, 41):
             with Workdir() as w:
                 a = ev(run_quan(w, {"stock": stock}, FIRST, seed=seed), "customer_arrived")
                 b = ev(run_quan(w, {"stock": stock}, FIRST, seed=seed), "customer_arrived")
@@ -222,6 +251,36 @@ class KitchenAndService(unittest.TestCase):
         block["player"] = {"pos": [6.1, 5]}  # bàn gần hơn -> phục vụ
         with Workdir() as w:
             self.assertEqual(len(ev(run_quan(w, block, 2, [{"tick": 0, "interact": True}]), "served")), 1)
+
+    def test_hai_bep_hoa_khoang_cach_chon_id_nho_va_don_cu_nhat(self):
+        """Đứng giữa B1 và B2 (cách đều): chọn B1 theo id; bếp lấy đơn reserved cũ nhất theo order_tick rồi id bàn."""
+        (b1, b2), (t1, t2) = Q["stoves"][:2], Q["tables"][:2]
+        mid = [(b1["pos"][0] + b2["pos"][0]) / 2, (b1["pos"][1] + b2["pos"][1]) / 2]
+        if math.dist(mid, b1["pos"]) > Q["interact_radius"]:
+            self.skipTest("B1 và B2 quá xa nhau để đứng giữa mà chạm cả hai")
+        block = {"player": {"pos": mid}, "random_customers": False, "stock": {"bong_sung": 2, "ca_loc": 1},
+                 "customers": [{"id": "C1", "table_id": t2["id"], "dish_id": "goi_bong_sung"},
+                               {"id": "C2", "table_id": t1["id"], "dish_id": "ca_loc_nuong_trui"}]}
+        with Workdir() as w:
+            rows = run_quan(w, block, 1, [{"tick": 0, "interact": True}])
+            self.assertEqual([(d["stove_id"], d["order_id"]) for _, d in ev(rows, "cook_started")], [(b1["id"], "C2")])
+
+    def test_hai_bep_nau_song_song(self):
+        (b1, b2), (t1, t2) = Q["stoves"][:2], Q["tables"][:2]
+        loc = {"order_id": "C2", "dish_id": "ca_loc_nuong_trui", "base_price": MENU["ca_loc_nuong_trui"]["price"]}
+        block = {"player": {"pos": b2["pos"]}, "random_customers": False, "stock": {"bong_sung": 2},
+                 "stoves": [{"id": b1["id"], "state": "cooking", "cook_ticks_left": 100, "dish": loc}],
+                 "customers": [{"id": "C1", "table_id": t2["id"], "dish_id": "goi_bong_sung"},
+                               {"id": "C2", "table_id": t1["id"], "dish_id": "ca_loc_nuong_trui",
+                                "order_status": "assigned"}]}
+        with Workdir() as w:
+            rows = run_quan(w, block, 1 + cook_ticks("goi_bong_sung"), [{"tick": 0, "interact": True}], every=1)
+            self.assertEqual([(t, d["stove_id"], d["order_id"]) for t, d in ev(rows, "cook_started")],
+                             [(1, b2["id"], "C1")])
+            self.assertEqual([(t, d["stove_id"]) for t, d in ev(rows, "dish_ready")],
+                             [(100, b1["id"]), (1 + cook_ticks("goi_bong_sung"), b2["id"])])
+            s = {r["tick"]: r for r in snapshots(rows)}[2]
+            self.assertEqual([st["state"] for st in s["stoves"]], ["cooking", "cooking"])
 
     def test_bep_dang_nau_thi_bo_luot(self):
         block = {"player": {"pos": STOVE}, "random_customers": False,
