@@ -5,7 +5,12 @@ Lát này chỉ chứa LUẬT (không đọc input/ghi file): bộ điều phố
 
 Thứ tự mỗi bước: giảm giờ → xử lý tối đa MỘT lệnh `buy` → cạnh `shop_done` → hết giờ.
 Bước cuối vừa có `buy` vừa có `shop_done`: buy được xử lý trước, rồi đóng bằng nút (`done`, thắng `time`).
+Kho dư v1.2 giữ nguyên cá thể và độ tươi từ lúc quán đóng, bỏ khi sang Ngày.
 """
+
+from copy import deepcopy
+
+from ..ids import sort_by_id
 
 UPGRADE_KINDS = ("oxygen", "hp")
 LEVEL_VALUE = {"oxygen": "oxygen_max_s", "hp": "hp_max"}
@@ -31,14 +36,17 @@ class ShopSim:
         self.money = money
         self.earned = earned
         self.upgrades = dict(upgrades)  # cấp ĐÃ MUA (có hiệu lực từ Ngày kế)
-        self.stock = dict(stock or {})  # kho dư từ ca, bỏ sau Shop
+        if stock is None:
+            stock = [] if "freshness" in tuning else {}
+        # Dùng snapshot quán, để Shop không cần biết biểu diễn fresh_units trong sim.
+        self.stock = deepcopy(sort_by_id(stock)) if isinstance(stock, list) else dict(sorted(stock.items()))
         self.time_left_ticks = int(self.t["max_ticks"])
         self.done = False
         self.reason = None
 
     def snapshot(self) -> dict:
         return {"money": self.money, "earned": self.earned, "upgrades": dict(self.upgrades),
-                "stock": dict(sorted(self.stock.items())), "time_left_ticks": self.time_left_ticks}
+                "stock": deepcopy(self.stock), "time_left_ticks": self.time_left_ticks}
 
     def step(self, buy=None, shop_done=False):
         """Một tick Shop. `buy`: chuỗi hoặc None/''; `shop_done`: cạnh lên của nút. Trả [(tên, dữ liệu)]."""

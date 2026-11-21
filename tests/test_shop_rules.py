@@ -1,4 +1,4 @@
-"""Luật Shop v1.1: mua nâng cấp, buy_failed, thứ tự buy → shop_done → hết giờ."""
+"""Luật Shop: mua nâng cấp, thứ tự đóng và giữ kho cá thể v1.2."""
 
 import unittest
 
@@ -68,9 +68,22 @@ class ShopRules(unittest.TestCase):
         self.assertEqual(active_stats(T, {"oxygen": 2}), {"oxygen_max_s": 60, "hp_max": 3})
 
     def test_snapshot_has_stock_and_time(self):
-        s = ShopSim(T, 5, 9, {"hp": 1}, stock={"ca_loc": 1})
+        stock = [{"id": "I1", "kind": "ca_loc", "fresh": 97.5}]
+        s = ShopSim(T, 5, 9, {"hp": 1}, stock=stock)
         snap = s.snapshot()
-        self.assertEqual((snap["stock"], snap["time_left_ticks"], snap["upgrades"]), ({"ca_loc": 1}, 600, {"hp": 1}))
+        self.assertEqual((snap["stock"], snap["time_left_ticks"], snap["upgrades"]), (stock, 600, {"hp": 1}))
+
+    def test_individual_stock_is_copied_sorted_and_never_ages_in_shop(self):
+        i10 = {"id": "I10", "kind": "ca_linh", "fresh": 30.0}
+        i2 = {"id": "I2", "kind": "ca_loc", "fresh": 29.995833333333334}
+        s = ShopSim(T, 5, 9, {}, stock=[i10, i2])
+        expected = [i2.copy(), i10.copy()]
+        i2["fresh"] = 12
+        s.snapshot()["stock"][1]["fresh"] = 3
+        for _ in range(T["shop"]["max_ticks"]):
+            s.step()
+        self.assertTrue(s.done)
+        self.assertEqual(s.snapshot()["stock"], expected)
 
 
 if __name__ == "__main__":

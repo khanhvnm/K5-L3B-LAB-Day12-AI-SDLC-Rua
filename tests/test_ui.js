@@ -14,7 +14,7 @@ function client(fetchOverride) {
       replaceChildren(){this.children = [];}, addEventListener(name, fn){this.handlers[name] = fn;},
       querySelector(){return this.children.find(el => el.tag === 'button' && !el.disabled);}, focus(){}, setAttribute(){}};
   }
-  const elements = {c: element('canvas'), panel: element('section'), screen: element('div')};
+  const elements = {c: element('canvas'), panel: element('section'), screen: element('div'), 'freshness-hud': element('aside')};
   const context = vm.createContext({innerWidth: 1280, innerHeight: 720, window: {devicePixelRatio: 1},
     document: {getElementById: id => elements[id], createElement: element},
     addEventListener: (name, callback) => handlers[name] = callback,
@@ -26,7 +26,7 @@ function client(fetchOverride) {
   const key = (type, value) => handlers[type]({key: value, preventDefault(){}, repeat: false});
   const panelText = () => elements.panel.children.map(el => el.textContent);
   const click = label => elements.panel.children.find(el => el.textContent.includes(label)).handlers.click();
-  return {run, key, handlers, calls, labels, fonts, timers, panelText, click};
+  return {run, key, handlers, calls, labels, fonts, timers, panelText, click, freshness: elements['freshness-hud']};
 }
 test('giữ hai phím cùng hướng rồi nhả một vẫn di chuyển', () => {
   const c = client(); c.key('keydown','w'); c.key('keydown','ArrowUp'); c.key('keyup','w');
@@ -58,6 +58,33 @@ test('HUD hai mode không lỗi khi thiếu trường tùy chọn', () => {
 test('HTTP lỗi không được xem là thành công', async () => {
   const c = client(async () => ({ok:false,status:503}));
   await assert.rejects(c.run('checkedFetch("/input")'), /503/);
+});
+
+test('HUD giỏ và kho hiển thị số, thanh và nhãn ươn theo ngưỡng của snapshot', () => {
+  const c = client();
+  c.run(`snap={mode:"day",phase:"gather",state:"playing",freshness:{initial:100,spoiled_below:30},
+    hold_capacity:12,day_plan:{ingredients:{ca_loc:3}}, hold:[
+      {id:"I1",kind:"ca_loc",fresh:30}, {id:"I2",kind:"ca_loc",fresh:29.995833333333334}
+    ]}; frame()`);
+  assert.equal(c.freshness.hidden, false);
+  assert.deepEqual(c.freshness.children.map(row => row.textContent), ['cá lóc · 30', 'cá lóc · 29,9 · Ươn']);
+  assert.deepEqual(c.freshness.children.map(row => row.children[0].tag), ['meter', 'meter']);
+  assert.ok(c.labels.includes('Đã lấy / cần: cá lóc 2/3'));
+  c.run(`snap={...snap,phase:"quan",stock:[{id:"I3",kind:"ca_keo",fresh:41}],
+    freshness:{initial:100,spoiled_below:42},available_stock:{}}; frame()`);
+  assert.equal(c.freshness.children[0].textContent, 'cá kèo · 41 · Ươn');
+  assert.equal(c.freshness.children[0].children[0].low, 42);
+  assert.ok(c.labels.includes('Kho khả dụng: (trống)'));
+  c.run(`snap={...snap,phase:"shop"}; frame()`);
+  assert.equal(c.freshness.hidden, true);
+});
+
+test('EveningIntro đếm kho cá thể và thông báo ươn chỉ rõ vị trí', () => {
+  const c = client();
+  c.run(`snap={mode:"day",phase:"quan",screen:"evening_intro",screen_id:2,day:1,available_stock:{},
+    delivered:[{id:"I1",kind:"ca_loc",fresh:97.5},{id:"I2",kind:"ca_loc",fresh:29}]}; updatePanel()`);
+  assert.ok(c.panelText().includes('Đã nhập kho: cá lóc ×2'));
+  assert.match(c.run('eventMessage({name:"spoiled",data:{kind:"ca_loc",item_id:"I2",location:"stock"}})'), /I2.*ươn trong kho/);
 });
 
 test('day điều khiển theo pha, Escape gửi cạnh xung và không bơi khi pause', async () => {

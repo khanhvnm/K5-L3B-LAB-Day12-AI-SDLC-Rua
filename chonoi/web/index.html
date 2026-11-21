@@ -7,6 +7,12 @@
 <style>
   html, body { margin: 0; height: 100%; background: #10161c; color: #e8eef2; font: 18px/1.4 system-ui, sans-serif; overflow: hidden; }
   canvas { display: block; width: 100vw; height: 100vh; }
+  #freshness-hud { position: fixed; inset: auto 14px 43px; display: grid; gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(min(173px, 100%), 1fr)); max-height: 108px; overflow: auto; }
+  #freshness-hud[hidden] { display: none; }
+  .fresh-item { padding: 4px 8px; border: 1px solid #456b70; border-radius: 6px; background: #192b32; }
+  .fresh-item meter { display: block; width: 100%; height: 10px; }
+  .fresh-item.spoiled { color: #ffb7aa; border-color: #da786a; }
   #screen { position: fixed; inset: 0; display: grid; place-items: center; background: #07151caa; padding: 24px; }
   #screen[hidden] { display: none; }
   #panel { width: min(680px, 100%); max-height: 75vh; overflow: auto; box-sizing: border-box; padding: 28px;
@@ -20,6 +26,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
+<aside id="freshness-hud" aria-label="Độ tươi nguyên liệu" tabindex="0" hidden></aside>
 <div id="screen" hidden><section id="panel" aria-label="Màn hình trò chơi"></section></div>
 <script>
 "use strict";
@@ -31,6 +38,7 @@
 const cv = document.getElementById("c");
 const ctx = cv.getContext("2d");
 const screenLayer = document.getElementById("screen"), panel = document.getElementById("panel");
+const freshnessHud = document.getElementById("freshness-hud");
 let snap = null, offline = false;
 const phaseOf = state => state?.phase || state?.mode || "gather";
 const screenOf = state => state?.screen || "playing";
@@ -110,6 +118,7 @@ addEventListener("keydown", event => {
   if (screen !== "playing" || snap?.finished) return;
   if (key === "escape" || key === "p") { event.preventDefault(); down.clear(); action("pause"); return; }
   if (snap?.state === "paused") return;
+  if (document.activeElement === freshnessHud && key.startsWith("arrow")) return;
   if (phaseOf(snap) === "shop") return;  // các nút Shop dùng được bằng Tab và Enter
   if (MOVE_KEYS[key] || key === " " || key === "e") event.preventDefault();
   if (MOVE_KEYS[key] || key === "e" || key === " ") { down.add(key); pushInput(); }
@@ -165,6 +174,7 @@ function eventMessage(event) {
   switch (event.name) {
     case "gather": return `Đã hái ${label} ×${d.amount ?? "?"}`;
     case "fish_caught": return `Đã bắt ${label} ×${d.yield ?? "?"}`;
+    case "spoiled": return `${label} (${d.item_id}) đã ươn trong ${d.location === "hold" ? "giỏ" : "kho"}.`;
     case "hold_full": return `Giỏ không đủ chỗ (${d.free ?? "?"} trống / cần ${d.required ?? "?"})`;
     case "oxygen_empty": return "Cạn oxy! Hãy nổi lên mặt nước.";
     case "monster_hit": return `Cá sấu tấn công — còn ${d.hp ?? "?"} máu`;
@@ -233,8 +243,61 @@ function fmtTime(ticks) {
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 const kindName = id => KIND_NAME[id] || id;
-const itemList = (items = {}) => Object.entries(items).map(([kind, n]) => `${kindName(kind)} ×${n}`).join(" · ") || "(trống)";
+function countItems(items) {
+  const counts = {};
+  for (const item of items || []) {
+    const kind = typeof item === "string" ? item : item.kind;
+    counts[kind] = (counts[kind] || 0) + 1;
+  }
+  return counts;
+}
+const itemList = (items = {}) => Object.entries(Array.isArray(items) ? countItems(items) : items)
+  .map(([kind, n]) => `${kindName(kind)} ×${n}`).join(" · ") || "(trống)";
 const dishList = (dishes = {}) => Object.entries(dishes).map(([id, n]) => `${dishName(id)} ×${n}`).join(" · ") || "(chưa có)";
+const freshNumber = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+let lastFreshSnapshot, shownFreshness = "";
+function updateFreshnessHud(state) {
+  if (state === lastFreshSnapshot) return;
+  lastFreshSnapshot = state;
+  const phase = phaseOf(state);
+  const items = phase === "gather" ? state.hold : phase === "quan" ? state.stock : null;
+  const config = state.freshness;
+  freshnessHud.hidden = screenOf(state) !== "playing" || state.finished || !config || !Array.isArray(items);
+  if (freshnessHud.hidden) return;
+  const rows = items.map(({ id, kind, fresh }) => {
+    // Hiển thị tới 0,1 điểm; luôn dùng giá trị thật để quyết định nhãn ươn.
+    const visible = Math.floor(fresh * 10) / 10;
+    return { id, kind, visible, spoiled: fresh < config.spoiled_below };
+  });
+  const key = JSON.stringify([phase, config.initial, config.spoiled_below, rows]);
+  if (key === shownFreshness) return;
+  shownFreshness = key;
+  const scroll = freshnessHud.scrollTop;
+  freshnessHud.replaceChildren();
+  freshnessHud.setAttribute("aria-label", phase === "gather" ? "Độ tươi trong giỏ" : "Độ tươi trong kho");
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "fresh-item";
+    empty.textContent = phase === "gather" ? "Giỏ trống" : "Kho trống";
+    freshnessHud.appendChild(empty);
+  }
+  for (const { id, kind, visible, spoiled } of rows) {
+    const name = kindName(kind);
+    const row = document.createElement("div");
+    row.className = spoiled ? "fresh-item spoiled" : "fresh-item";
+    row.title = id + " · " + name;
+    row.textContent = `${name} · ${freshNumber.format(visible)}${spoiled ? " · Ươn" : ""}`;
+    const meter = document.createElement("meter");
+    meter.max = config.initial;
+    meter.low = config.spoiled_below;
+    meter.optimum = config.initial;
+    meter.value = visible;
+    meter.setAttribute("aria-label", `Độ tươi ${name} (${id})`);
+    row.appendChild(meter);
+    freshnessHud.appendChild(row);
+  }
+  freshnessHud.scrollTop = scroll;
+}
 function readyDishes(state) {
   const stock = state.available_stock || {};
   return Object.keys(state.day_plan?.dishes || {}).filter(id => {
@@ -324,6 +387,11 @@ function updatePanel() {
   if (view !== "shop") panel.querySelector("button:not(:disabled)")?.focus();
 }
 function eventLog(w, h) {
+  if (snap.freshness && phaseOf(snap) !== "shop") {
+    if (messages.length) text(messages.at(-1), w - 14, 110,
+      { align: "right", color: "#fff1b8", maxWidth: w * .45 });
+    return;
+  }
   messages.slice(-2).forEach((message, index) => text(message, w - 14, h - 65 + index * 24,
     { align: "right", color: "#fff1b8", maxWidth: w * 0.45 }));
 }
@@ -343,7 +411,7 @@ function drawGather(w, h) {
   const meta = snap.meta || {};
   const b = meta.bounds || { x: [0, 100], d: [0, 30] };
   const X = b.x[1], D = b.d[1], SKY = 6;
-  const top = 116, bottom = 152;
+  const top = snap.freshness ? 132 : 116, bottom = snap.freshness ? 178 : 152;
   const s = Math.max(1, Math.min((w - 20) / (X + 4), (h - top - bottom) / (D + SKY + 1)));
   const ox = (w - s * (X + 4)) / 2 + 2 * s, oy = top + SKY * s;
   const sx = (x) => ox + x * s, sy = (d) => oy + d * s;
@@ -424,19 +492,22 @@ function drawGather(w, h) {
   if (p?.pos) {
     const cooldown = p.catch_cd_ticks > 0 ? (p.catch_cd_ticks / 60).toFixed(1) + "s" : "sẵn sàng";
     text(`Độ sâu ${p.pos[1].toFixed(1)} m · Bắt: ${cooldown}`, 14, 55);
-    if (distance(dp, p.pos) <= dr) text("E · Cập bến", 14, h - 54, { color: "#ffeab7" });
+    const hintY = h - (snap.freshness ? 157 : 54);
+    if (distance(dp, p.pos) <= dr) text("E · Cập bến", 14, hintY, { color: "#ffeab7" });
     else if (p.at_surface && (snap.nodes || []).some(n => n.ready !== false && distance(n.pos, p.pos) <= meta.interact_radius)) {
-      text("E · Hái", 14, h - 54, { color: "#ffeab7" });
+      text("E · Hái", 14, hintY, { color: "#ffeab7" });
     }
   }
-  const counts = {};
-  for (const kind of snap.hold || []) counts[kind] = (counts[kind] || 0) + 1;
+  const counts = countItems(snap.hold);
   if (snap.day_plan?.ingredients) {
     const goals = Object.entries(snap.day_plan.ingredients).map(([kind, n]) => `${kindName(kind)} ${counts[kind] || 0}/${n}`);
     text("Đã lấy / cần: " + goals.join(" · "), 14, 84);
   }
   // giỏ (khoang) dưới
-  if (snap.hold && snap.hold_capacity) {
+  if (snap.freshness && snap.hold_capacity) {
+    text(`Giỏ ${snap.hold?.length ?? 0}/${snap.hold_capacity} · ${itemList(counts)}`, 14, 110,
+      { color: "#cfd8dc", maxWidth: w * .5 });
+  } else if (snap.hold && snap.hold_capacity) {
     const cap = snap.hold_capacity, sz = Math.max(1, Math.min(27, (w - 28) / cap - 4)), y0 = h - bottom + 14;
     for (let i = 0; i < cap; i++) {
       const x0 = 14 + i * (sz + 4);
@@ -452,7 +523,7 @@ function drawGather(w, h) {
 function drawQuan(w, h) {
   const meta = snap.meta || {};
   const b = meta.bounds || { x: [0, 16], z: [0, 10] };
-  const X = b.x[1], Z = b.z[1], top = 120, bottom = 105;
+  const X = b.x[1], Z = b.z[1], top = 120, bottom = snap.freshness ? 170 : 105;
   const leftW = w * .57;
   const s = Math.max(1, Math.min((leftW - 28) / X, (h - top - bottom) / Z));
   const ox = (leftW - s * X) / 2, oy = top;
@@ -537,6 +608,7 @@ function frame() {
       eventLog(w, h);
     }
     overlay(w, h);
+    updateFreshnessHud(snap);
     updatePanel();
   } else {
     text(offline ? "Không kết nối được máy chủ…" : "Đang tải…", w / 2, h / 2, { align: "center", size: 18 });
